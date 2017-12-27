@@ -1,0 +1,286 @@
+user  nginx;
+worker_processes  4;
+
+#error_log  logs/error.log;
+error_log  logs/error.log  notice;
+#error_log  logs/error.log  debug;
+#error_log  logs/error.log  info;
+
+#pid        logs/nginx.pid;
+
+
+events {
+    use epoll;
+    worker_connections  51200;
+}
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+	由于购买了阿里云waf，nginx的日志访问的地址是阿里云的，所以需要修改nginx的日志配置，还需要配合虚拟主机那段配置
+    log_format  main  '$remote_addr $http_x_connecting_ip - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for" $request_time';
+
+    access_log  logs/access.log  main;
+
+    sendfile        on;
+    send_timeout    90;
+
+    keepalive_timeout  65;
+    gzip  on;
+    gzip_types text/plain;
+    client_max_body_size 50m;
+    client_body_buffer_size 1024k;
+    add_header  X-WebServer-Time '$request_time';
+    proxy_buffering    off;
+    proxy_set_header   Host $host;
+    proxy_set_header   X-Real-IP $remote_addr;
+    proxy_set_header   X-Scheme $scheme;
+    proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header   Upgrade $http_upgrade;
+    proxy_set_header   Connection "upgrade";
+    proxy_http_version 1.1;
+    proxy_connect_timeout 90;
+    #----------------------------------------------------------------
+    #nginx ---> tomcat http
+    upstream ibdp2p-backend{
+       server 10.116.24.193:8080;
+    }
+    #----------------------------------------------------------------
+
+    #----------------------------------------------------------------
+    #nginx ---> tomcat https(ssl)
+    upstream ibdp2p-backends{
+       server 10.116.24.193:8443;
+    }
+    #----------------------------------------------------------------
+
+    include /usr/local/nginx/conf.d/*.conf;
+	# verynginx config
+    #config verynginx
+    #include /opt/verynginx/verynginx/nginx_conf/in_http_block.conf;
+}
+
+conf.d/
+[root@prd-1 conf.d]# cat ibd_ssl.conf
+server {
+        #-----------------------------------------------------------------------
+        # port 80 and 443
+        listen       80;
+        listen       443 ssl;
+        #-----------------------------------------------------------------------
+        server_name  www.ibdp2p.com;
+
+        # config verynginx
+        #include /opt/verynginx/verynginx/nginx_conf/in_server_block.conf;
+        #-----------------------------------------------------------------------
+        # ssl 配置
+        ssl_certificate   /usr/local/nginx/sslkey/www.ibdp2p.com.pem;
+        ssl_certificate_key  /usr/local/nginx/sslkey/www.ibdp2p.com.key;
+        ssl_session_timeout 5m;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:HIGH:!aNULL:!MD5:!RC4:!DHE;
+        ssl_prefer_server_ciphers   on;
+        #----------------------------------------------------------------------
+        #----------------------------------------------------------------------
+        # 由于购买了阿里云WAF，需要配置这段nginx日志里才会显示真实访问者的ip地址
+        set_real_ip_from 121.43.18.0/24;
+        set_real_ip_from 101.200.106.0/24;
+        set_real_ip_from 120.27.173.0/24;
+        set_real_ip_from 118.178.15.0/24;
+        set_real_ip_from 120.76.16.0/24;
+        set_real_ip_from 120.25.115.0/24;
+        set_real_ip_from 120.55.177.0/24;
+        set_real_ip_from 120.55.107.0/24;
+        set_real_ip_from 123.57.117.0/24;
+        real_ip_header    X-Forwarded-For;
+
+        # 由于购买了知道创宇的高仿，需要配置这段nginx日志里才会显示真实访问者的ip地址
+        proxy_set_header x-client $http_x_connecting_ip;
+        #----------------------------------------------------------------------
+        # 生成的静态文件
+		include /usr/local/nginx/conf.static/static.conf;
+
+        #----------------------------------------------------------------------
+        # 80 ---> 443
+        
+        set $flag1 0;
+        if ($server_port = 80) {      
+                return 301 https://www.ibdp2p.com$request_uri;
+        }
+        
+        #-----------------------------------------------------------------------
+
+        #-----------------------------------------------------------------------
+        #授权微信公众号登陆
+        location ~ MP_verify_VlpMsODKEghljTBb.txt {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal;
+        }
+
+        #---------------------------------------------------------------------------------
+        #机器人扫描返回http status code 444
+
+        if ($http_user_agent ~* python|googlebot|bingbot|yisouspider|semrushbot|mj12bot|ahrefsbot|slurp|sougou|^$) {
+                return 444;
+        }
+
+        #---------------------------------------------------------------------------------
+
+        #关闭开源waf访问nginx的日志
+        #location /Enhancenginx {
+        #       access_log /dev/null;
+        #       error_log /dev/null;
+        #       #root /opt/verynginx/verynginx/dashboard/;
+        #       #index index.html;
+        #}
+        #---------------------------------------------------------------------------------
+
+        #---------------------------------------------------------------------------------
+        #第三方的电子合同在87
+        #location /data/thirdparty {
+        #       proxy_pass http://10.26.88.11:2014/thirdparty;
+        #}
+        #---------------------------------------------------------------------------------
+        #拒绝以这些类型结尾的请求
+        location ~ \.(rar|zip|tar|gz|xz|7z|txt|php|bz2|jar|z|aps|aspx|sql)$ {
+                return 444;
+        }
+        #---------------------------------------------------------------------------------
+        location / {
+                #-------------------------------------------------------------------------
+                #网站维护的时候，需要挂载维护页面将/opt/sdp/ibdp2p/maintenance.enable.bak 这个文件的后缀.bak 去掉
+                if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                        return 503;
+                }
+                #-------------------------------------------------------------------------
+
+                proxy_pass https://ibdp2p-backends;
+        }
+
+        #---------------------------------------------------------------------------------
+        location ~ ^(.*)/.svn/{
+                return 444;
+        }
+
+        location /portal/html/app/spiderPc.html {
+                return 444;
+        } 
+  
+        location ^~ /(images|js|css) {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/;
+        }
+        location ^~ /share {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/;
+        }
+        location /mbm {
+                if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                        return 503;
+                }
+
+                proxy_pass http://10.46.120.2:8080/mbm;
+        }
+        # 66 上面没有图片的时候跳转至87
+        location /mbm/mbmResource/sealcontract {
+                proxy_pass http://10.46.120.2:8080/mbm/mbmResource/sealcontract;
+                proxy_intercept_errors on;
+                error_page 404 @pdf;
+        }
+        
+        location @pdf {
+            proxy_pass http://10.26.88.11:2014$uri;
+        }
+        #---------------------------------------------------------------------------------
+
+        location ^~ /mbm/api {
+                proxy_pass http://10.46.120.2:8080/mbm/api;
+        }
+   
+        location ^~ /mbm/uc/api {
+                proxy_pass http://10.46.120.2:8080/mbm/uc/api;
+        }
+
+        location  /attach/ {
+                root /opt/sdp/ibdp2p/tomcat/webapps/pms/;
+        }
+
+        location ^~ /mbm/mbmResource/creditcontract {
+                proxy_pass http://10.46.120.2:8080/mbm/mbmResource/creditcontract;
+        }
+
+        location /mobile {
+                if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                        return 503;
+                }
+                proxy_pass https://ibdp2p-backends/mobile;
+        }
+        location ^~ /mobile/(images|wap|js|css) {
+                root /opt/sdp/ibdp2p/tomcat/webapps/mobile/;
+        }       
+        location /pms {
+                if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                        return 503;
+                }
+                proxy_pass https://ibdp2p-backends/pms;
+        }
+        location ^~ /pms/(images|js|css) {
+                root /opt/sdp/ibdp2p/tomcat/webapps/pms/;
+        }
+        location /Maintenance {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/html/;
+        }   
+
+        location /Gifts {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/html/;
+        }   
+        location /guarantee {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/html/;
+        }   
+        location /noStock {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/html/;
+        }   
+        location ^~ /manager {
+                return 444;
+        }
+        location @maintenance{
+                rewrite ^ https://www.ibdp2p.com/Maintenance/index.html break;
+        }
+        error_page   503  @maintenance;
+}
+
+[devops@prd-1 conf.static]$ pwd
+/usr/local/nginx/conf.static
+[devops@prd-1 conf.static]$ cat static.conf 
+location /data/static/html/invest {
+        alias /data/static/html/invest;
+}
+location /invest/creditInfo.action {
+        if ($args ~* "creditId=(\d+)$") {
+                set $c_id $1;
+                set $c_bid_var "creditInfo-";
+                set $c_bid_file_var $c_bid_var$c_id.html;
+        }
+
+        if (-f /data/static/html/invest/$c_bid_file_var) {
+                proxy_pass http://10.116.24.193/data/static/html/invest/$c_bid_file_var;
+        }
+        proxy_pass http://10.116.24.193:8080/invest/creditInfo.action;
+}
+location /invest/json {
+        root /data/static/html;
+}
+
+location /invest/rightInfo.action {
+        if ($args ~* "repaymentId=(\d+)$") {
+                set $r_id $1;
+                set $r_bid_var "rightInfo-";
+                set $r_bid_file_var $r_bid_var$r_id.html;
+        }
+
+        if (-f /data/static/html/invest/$r_bid_file_var) {
+                proxy_pass http://10.116.24.193/data/static/html/invest/$r_bid_file_var;
+        }
+        proxy_pass http://10.116.24.193:8080/invest/rightInfo.action;
+}

@@ -1,0 +1,24 @@
+应对扫描，将已完成的标生成静态文件，文件名为请求参数，后缀是html
+判断此文件存在就显示静态文件的内容，不用去请求后台，如果不存在还是请求后台数据库
+请求 https://www.ibdp2p.com/invest/creditInfo.action?creditId=20053
+判断 目录/opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/invest 下是否有creditInfo-20053.html
+		location /invest/creditInfo.action {
+                if ($args ~* ".*=(\d+)$") {
+                        set $id $1;
+                        set $biao_type "creditInfo-";
+                        set $biao_file $biao_type$id.html;
+                }
+
+                if (-f /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/invest/$biao_file) {
+                        proxy_pass http://10.45.181.104:8080/html/invest/$biao_file;
+                }
+                proxy_pass http://10.45.181.104:8080/invest/creditInfo.action;
+        }
+
+        location /invest/json {
+                root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html;
+        }
+
+
+
+        

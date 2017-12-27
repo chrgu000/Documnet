@@ -1,0 +1,18 @@
+http_load
+	-r 每秒钟访问的频率
+	-p 并发的用户进程数
+	-s 运行的时间
+	-f 总计的访问次数
+
+
+[root@ibd ~]# http_load -r 100 -s 60 -p 100 url.txt 
+1173 fetches, 100 max parallel, 3.17021e+07 bytes, in 60.0002 seconds
+27026.5 mean bytes/connection
+19.5499 fetches/sec, 528367 bytes/sec
+msecs/connect: 19.9324 mean, 1012.38 max, 4.387 min
+msecs/first-response: 577.25 mean, 27080.9 max, 8.85 min
+HTTP response codes:
+  code 200 -- 1173
+
+
+

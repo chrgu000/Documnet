@@ -1,0 +1,18 @@
+centos 7 sudo 升级.
+由于Sudo version 1.8.6p7 版本过低，有漏洞，升级至sudo-1.8.20p2
+可以先用sudo -V 命令查看原编译选项，尽量使用原编译选项
+安装依赖包
+yum -y install audit-libs-devel libgcrypt-devel
+tar xf sudo-1.8.20p2.tar.gz
+cd sudo-1.8.20p2
+./configure --build=x86_64-redhat-linux-gnu --host=x86_64-redhat-linux-gnu --program-prefix= --prefix=/usr --exec-prefix=/usr --bindir=/usr/bin --sbindir=/usr/sbin --sysconfdir=/etc --datadir=/usr/share --includedir=/usr/include --libdir=/usr/lib64 --libexecdir=/usr/libexec --localstatedir=/var --sharedstatedir=/var/lib --mandir=/usr/share/man --infodir=/usr/share/info --prefix=/usr --sbindir=/usr/sbin --libdir=/usr/lib64 --docdir=/usr/share/doc/sudo-1.8.20p2 --with-logging=syslog --with-logfac=authpriv --with-pam --with-pam-login --with-editor=/bin/vi --with-env-editor --with-ignore-dot --with-tty-tickets --with-ldap --with-ldap-conf-file=/etc/sudo-ldap.conf--with-selinux --with-passprompt=[sudo] password for %p: --with-linux-audit --with-sssd --enable-gcrypt
+
+make -j 4 && make install
+
+
+centos 6.5
+
+yum -y install audit-libs-devel pam-devel openldap-devel
+
+./configure --build=x86_64-redhat-linux-gnu --host=x86_64-redhat-linux-gnu --target=x86_64-redhat-linux-gnu --program-prefix= --prefix=/usr --exec-prefix=/usr --bindir=/usr/bin --sbindir=/usr/sbin --sysconfdir=/etc --datadir=/usr/share --includedir=/usr/include --libdir=/usr/lib64 --libexecdir=/usr/libexec --localstatedir=/var --sharedstatedir=/var/lib --mandir=/usr/share/man --infodir=/usr/share/info --prefix=/usr --sbindir=/usr/sbin --libdir=/usr/lib64 --docdir=/usr/share/doc/sudo-1.8.20p2 --with-logging=syslog --with-logfac=authpriv --with-pam --with-pam-login --with-editor=/bin/vi --with-env-editor --with-ignore-dot --with-tty-tickets --with-ldap --with-ldap-conf-file=/etc/sudo-ldap.conf --with-selinux --with-passprompt=[sudo] password for %p: --with-linux-audit --with-sssd
+

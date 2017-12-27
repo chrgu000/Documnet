@@ -1,0 +1,48 @@
+Oct 31, 2016 4:32:18 PM org.apache.catalina.loader.WebappClassLoaderBase clearReferencesThreads
+SEVERE: The web application [/appSvr] appears to have started a thread named [Abandoned connection cleanup thread] but has failed to stop it. This is very likely to create a memory leak.
+Oct 31, 2016 4:32:18 PM org.apache.coyote.AbstractProtocol stop
+
+Oct 31, 2016 4:32:18 PM org.apache.catalina.loader.WebappClassLoaderBase clearReferencesThreads
+SEVERE: The web application [/appSvr] appears to have started a thread named [Abandoned connection cleanup thread] but has failed to stop it. This is very likely to create a memory leak.
+Oct 31, 2016 4:32:18 PM org.apache.coyote.AbstractProtocol stop
+
+
+INFO: At least one JAR was scanned for TLDs yet contained no TLDs. Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+
+
+WARNING: Prefs file removed in background /root/.java/.userPrefs/prefs.xml
+16:34:26,809 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback.groovy]
+16:34:26,809 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback-test.xml]
+
+16:34:26,914 |-WARN in ch.qos.logback.core.ConsoleAppender[STDOUT] - This appender no longer admits a layout as a sub-component, set an encoder instead.
+16:34:26,914 |-WARN in ch.qos.logback.core.ConsoleAppender[STDOUT] - To ensure compatibility, wrapping your layout in LayoutWrappingEncoder.
+16:34:26,914 |-WARN in ch.qos.logback.core.ConsoleAppender[STDOUT] - See also http://logback.qos.ch/codes.html#layoutInsteadOfEncoder for detail
+
+16:34:26,923 |-ERROR in ch.qos.logback.core.joran.spi.Interpreter@17:13 - no applicable action for [Encoding], current pattern is [[configuration][appender][Encoding]]
+
+
+16:34:26,941 |-WARN in ch.qos.logback.core.rolling.RollingFileAppender[FILE] - This appender no longer admits a layout as a sub-component, set an encoder instead.
+16:34:26,941 |-WARN in ch.qos.logback.core.rolling.RollingFileAppender[FILE] - To ensure compatibility, wrapping your layout in LayoutWrappingEncoder.
+16:34:26,941 |-WARN in ch.qos.logback.core.rolling.RollingFileAppender[FILE] - See also http://logback.qos.ch/codes.html#layoutInsteadOfEncoder for details
+
+
+16:34:26,949 |-ERROR in ch.qos.logback.core.joran.spi.Interpreter@37:12 - no applicable action for [Encoding], current pattern is [[configuration][appender][Encoding]]
+
+
+16:34:26,958 |-WARN in ch.qos.logback.core.rolling.RollingFileAppender[errFile] - This appender no longer admits a layout as a sub-component, set an encoder instead.
+16:34:26,958 |-WARN in ch.qos.logback.core.rolling.RollingFileAppender[errFile] - To ensure compatibility, wrapping your layout in LayoutWrappingEncoder.
+16:34:26,958 |-WARN in ch.qos.logback.core.rolling.RollingFileAppender[errFile] - See also http://logback.qos.ch/codes.html#layoutInsteadOfEncoder for details
+
+INFO: At least one JAR was scanned for TLDs yet contained no TLDs. Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+
+
+INFO: validateJarFile(/home/ibd/apache-tomcat-7.0.65/webapps/mbm/WEB-INF/lib/servlet-api.jar) - jar not loaded. See Servlet Spec 3.0, section 10.7.2. Offending class: javax/servlet/Servlet.class
+
+
+INFO: At least one JAR was scanned for TLDs yet contained no TLDs. Enable debug logging for this logger for a complete list of JARs that were scanned but no TLDs were found in them. Skipping unneeded JARs during scanning can improve startup time and JSP compilation time.
+
+
+2016-10-31 16:34:54 [ERROR] com.phd.api.servlet.CommonHandler.execute(CommonHandler.java:50) com.phd.api.servlet.CommonHandler
+
+
+

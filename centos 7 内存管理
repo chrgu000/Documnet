@@ -1,0 +1,384 @@
+centos 7 内存管理
+	当内存不够使用的时候，清理cache。
+	运行sync将dirty的内容写回硬盘
+	$sync
+
+	通过修改proc系统的drop_caches清理free的cache
+	$echo 3 > /proc/sys/vm/drop_caches
+		1 清空页缓存   2 清空inode和目录树缓存  3 清空所有的缓存
+
+	[devops@iZ947f0upfuZ logs]$ free -m
+              	   total        used        free      shared  buff/cache   available
+	Mem:           3534        1719         216           0        1597        1595
+	Swap:            0           0           0
+
+	[devops@iZ947f0upfuZ logs]$ free
+              	 total        used        free      shared  buff/cache   available
+	Mem:        3619012     1761328      219172       408     1638512     1633824
+	Swap:          0           0           0
+
+
+	第一行 total(总内存量) used(已经使用的内存量) free(空闲的内存量) shared(多个程序共享的内存)  buff/cache(缓存)   available
+	used+free+buff/cache=total
+	1761328+219172+219172=3619012
+
+
+	查看内存页大小
+		getconf PAGE_SIZE
+
+	[devops@iZ947f0upfuZ ~]$ cat /proc/zoneinfo
+	Node 0, zone      DMA
+  		pages free   3859 # 当这个值低于86，kswapd进程就会扫描内存并且每次释放出32个free pages，直至此值大于86
+	        min      69
+	        low      86
+	        high     103
+	        scanned  0
+	        spanned  4095
+	        present  3998
+	        managed  3977
+	Node 0, zone    DMA32
+  		pages free   159882
+	        min      12602
+	        low      15752
+	        high     18903
+	        scanned  0
+	        spanned  1044480
+	        present  782288
+	        managed  721195
+
+	Node 0, zone    DMA32
+  		pages free     159882
+	        min      12602
+	        low      15752
+	        high     18903
+	        scanned  0
+	        spanned  1044480
+	        present  782288
+	        managed  721195
+
+	内存分3个区
+		DMA 16M以下
+
+
+
+jsp脚本查看tomcat使用内存的情况
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<title>JVM memory</title>
+	</head>
+	<body>
+		<%
+			double total = (Runtime.getRuntime().totalMemory()) / (1024.0 * 1024);
+			double max = (Runtime.getRuntime().maxMemory()) / (1024.0 * 1024);
+			double free = (Runtime.getRuntime().freeMemory()) / (1024.0 * 1024);
+			out.println("Java 虚拟机试图使用的最大内存量(当前JVM的最大可用内存)maxMemory(): " + max + "MB<br/>");
+			out.println("Java 虚拟机中的内存总量(当前JVM占用的内存总数)totalMemory(): " + total + "MB<br/>");
+			out.println("Java 虚拟机中的空闲内存量(当前JVM空闲内存)freeMemory(): " + free + "MB<br/>");
+			out.println("因为JVM只有在需要内存时才占用物理内存使用，所以freeMemory()的值一般情况下都很小，<br/>" +
+			"而JVM实际可用内存并不等于freeMemory()，而应该等于 maxMemory()-totalMemory()+freeMemory()。<br/>");
+			out.println("JVM实际可用内存: " + (max - total + free) + "MB<br/>");
+			out.println("jspcn");
+		%>
+	</body>
+</html>
+
+
+
+
+kswapd0 进程运行100%
+
+[root@iZ947f0upfuZ ~]# cat /proc/zoneinfo
+Node 0, zone      DMA
+  pages free     3859
+        min      69
+        low      86
+        high     103
+        scanned  0
+        spanned  4095
+        present  3998
+        managed  3977
+    nr_free_pages 3859
+    nr_alloc_batch 17
+    nr_inactive_anon 1
+    nr_active_anon 87
+    nr_inactive_file 0
+    nr_active_file 1
+    nr_unevictable 0
+    nr_mlock     0
+    nr_anon_pages 87
+    nr_mapped    1
+    nr_file_pages 2
+    nr_dirty     0
+    nr_writeback 0
+    nr_slab_reclaimable 5
+    nr_slab_unreclaimable 3
+    nr_page_table_pages 1
+    nr_kernel_stack 0
+    nr_unstable  0
+    nr_bounce    0
+    nr_vmscan_write 64
+    nr_vmscan_immediate_reclaim 666
+    nr_writeback_temp 0
+    nr_isolated_anon 0
+    nr_isolated_file 0
+    nr_shmem     1
+    nr_dirtied   364
+    nr_written   337
+    numa_hit     4874
+    numa_miss    0
+    numa_foreign 0
+    numa_interleave 0
+    numa_local   4874
+    numa_other   0
+    workingset_refault 294
+    workingset_activate 19
+    workingset_nodereclaim 0
+    nr_anon_transparent_hugepages 0
+    nr_free_cma  0
+        protection: (0, 3583, 3773, 3773)
+  pagesets
+    cpu: 0
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+    cpu: 1
+              count: 0
+              high:  0
+              batch: 1
+  vm stats threshold: 8
+  all_unreclaimable: 0
+  start_pfn:         1
+  inactive_ratio:    1
+Node 0, zone    DMA32
+  pages free     77153
+        min      15982
+        low      19977
+        high     23973
+        scanned  0
+        spanned  1044480
+        present  978944
+        managed  917851
+    nr_free_pages 77153
+    nr_alloc_batch 698
+    nr_inactive_anon 31
+    nr_active_anon 646507
+    nr_inactive_file 107801
+    nr_active_file 41402
+    nr_unevictable 0
+    nr_mlock     0
+    nr_anon_pages 232755
+    nr_mapped    9150
+    nr_file_pages 149291
+    nr_dirty     170
+    nr_writeback 0
+    nr_slab_reclaimable 9286
+    nr_slab_unreclaimable 2374
+    nr_page_table_pages 2223
+    nr_kernel_stack 132
+    nr_unstable  0
+    nr_bounce    0
+    nr_vmscan_write 0
+    nr_vmscan_immediate_reclaim 4
+    nr_writeback_temp 0
+    nr_isolated_anon 0
+    nr_isolated_file 0
+    nr_shmem     88
+    nr_dirtied   2050055
+    nr_written   1951726
+    numa_hit     30466689
+    numa_miss    0
+    numa_foreign 0
+    numa_interleave 0
+    numa_local   30466689
+    numa_other   0
+    workingset_refault 329570
+    workingset_activate 146688
+    workingset_nodereclaim 0
+    nr_anon_transparent_hugepages 808
+    nr_free_cma  0
+        protection: (0, 0, 189, 189)
+  pagesets
+    cpu: 0
+              count: 129
+              high:  186
+              batch: 31
+  vm stats threshold: 24
+    cpu: 1
+              count: 146
+              high:  186
+              batch: 31
+  vm stats threshold: 24
+  all_unreclaimable: 0
+  start_pfn:         4096
+  inactive_ratio:    5
+Node 0, zone   Normal
+  pages free     1053
+        min      844
+        low      1055
+        high     1266
+        scanned  0
+        spanned  65536
+        present  65536
+        managed  48461
+    nr_free_pages 1053
+    nr_alloc_batch 211
+    nr_inactive_anon 2
+    nr_active_anon 1313
+    nr_inactive_file 0
+    nr_active_file 1
+    nr_unevictable 0
+    nr_mlock     0
+    nr_anon_pages 1312
+    nr_mapped    1
+    nr_file_pages 4
+    nr_dirty     0
+    nr_writeback 0
+    nr_slab_reclaimable 1100
+    nr_slab_unreclaimable 1216
+    nr_page_table_pages 100
+    nr_kernel_stack 68
+    nr_unstable  0
+    nr_bounce    0
+    nr_vmscan_write 24543
+    nr_vmscan_immediate_reclaim 340
+    nr_writeback_temp 0
+    nr_isolated_anon 0
+    nr_isolated_file 0
+    nr_shmem     3
+    nr_dirtied   13023
+    nr_written   12802
+    numa_hit     125770
+    numa_miss    0
+    numa_foreign 0
+    numa_interleave 5398
+    numa_local   125770
+    numa_other   0
+    workingset_refault 4967
+    workingset_activate 319
+    workingset_nodereclaim 0
+    nr_anon_transparent_hugepages 0
+    nr_free_cma  0
+        protection: (0, 0, 0, 0)
+  pagesets
+    cpu: 0
+              count: 15
+              high:  90
+              batch: 15
+  vm stats threshold: 8
+    cpu: 1
+              count: 0
+              high:  90
+              batch: 15
+  vm stats threshold: 8
+  all_unreclaimable: 0
+  start_pfn:         1048576
+  inactive_ratio:    1
+
+
+
+
+UID        PID  PPID   LWP  C NLWP STIME TTY          TIME CMD
+devops   23575 23573 23575  0   31 Dec26 ?        00:00:00 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23576  0   31 Dec26 ?        00:00:01 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23577  0   31 Dec26 ?        00:00:04 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23578  0   31 Dec26 ?        00:00:04 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23579  0   31 Dec26 ?        00:00:22 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23580  0   31 Dec26 ?        00:00:01 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23581  0   31 Dec26 ?        00:00:02 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23582  0   31 Dec26 ?        00:00:00 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23583  0   31 Dec26 ?        00:00:37 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23584  0   31 Dec26 ?        00:00:40 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23585  0   31 Dec26 ?        00:00:00 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23586  0   31 Dec26 ?        00:02:16 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23587  0   31 Dec26 ?        00:00:00 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23596  0   31 Dec26 ?        00:00:10 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23597  0   31 Dec26 ?        00:00:21 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23598  0   31 Dec26 ?        00:00:00 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23599  0   31 Dec26 ?        00:00:11 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23600  0   31 Dec26 ?        00:00:08 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23620  0   31 Dec26 ?        00:01:21 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 23622  0   31 Dec26 ?        00:00:00 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573  4614  0   31 Dec27 ?        00:00:23 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573  4643  0   31 Dec27 ?        00:00:24 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573  5515  0   31 Dec27 ?        00:00:22 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573  5516  0   31 Dec27 ?        00:00:22 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573  7653  0   31 Dec27 ?        00:00:15 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573  8598  0   31 Dec27 ?        00:00:11 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 12422  0   31 08:59 ?        00:00:02 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 12423  0   31 08:59 ?        00:00:02 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 12424  0   31 08:59 ?        00:00:03 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 12653  0   31 09:25 ?        00:00:01 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+devops   23575 23573 13270  0   31 10:34 ?        00:00:00 /usr/java/jdk1.7.0_80/bin/java -Djava.util.logging.config.file=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/conf/logging.properties -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager -Xms3072m -Xmx3072m -Xss1024K -XX:PermSize=228m -XX:MaxPermSize=512m -Djava.security.egd=file:/dev/./urandom -Djava.endorsed.dirs=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/endorsed -classpath /opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/bootstrap.jar:/opt/sdp/ibdp2p/apache-tomcat-6.0.43/bin/tomcat-juli.jar -Dcatalina.base=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Dcatalina.home=/opt/sdp/ibdp2p/apache-tomcat-6.0.43 -Djava.io.tmpdir=/opt/sdp/ibdp2p/apache-tomcat-6.0.43/temp org.apache.catalina.startup.Bootstrap start
+
+
+
+
+[root@iZ947f0upfuZ ~]# jmap -heap 23575
+Attaching to process ID 23575, please wait...
+Debugger attached successfully.
+Server compiler detected.
+JVM version is 24.80-b11
+
+using thread-local object allocation.
+Parallel GC with 2 thread(s)
+
+Heap Configuration:
+   MinHeapFreeRatio = 0
+   MaxHeapFreeRatio = 100
+   MaxHeapSize      = 3221225472 (3072.0MB)
+   NewSize          = 1310720 (1.25MB)
+   MaxNewSize       = 17592186044415 MB
+   OldSize          = 5439488 (5.1875MB)
+   NewRatio         = 2
+   SurvivorRatio    = 8
+   PermSize         = 239075328 (228.0MB)
+   MaxPermSize      = 536870912 (512.0MB)
+   G1HeapRegionSize = 0 (0.0MB)
+
+Heap Usage:
+PS Young Generation
+Eden Space:
+   capacity = 961019904 (916.5MB)
+   used     = 572928984 (546.3876571655273MB)
+   free     = 388090920 (370.11234283447266MB)
+   59.61676564817538% used
+From Space:
+   capacity = 57147392 (54.5MB)
+   used     = 10043856 (9.578567504882812MB)
+   free     = 47103536 (44.92143249511719MB)
+   17.575353219968463% used
+To Space:
+   capacity = 55574528 (53.0MB)
+   used     = 0 (0.0MB)
+   free     = 55574528 (53.0MB)
+   0.0% used
+PS Old Generation
+   capacity = 2147483648 (2048.0MB)
+   used     = 1106050848 (1054.8122863769531MB)
+   free     = 1041432800 (993.1877136230469MB)
+   51.504506170749664% used
+PS Perm Generation
+   capacity = 239075328 (228.0MB)
+   used     = 99633840 (95.01823425292969MB)
+   free     = 139441488 (132.9817657470703MB)
+   41.67466414602179% used
+
+47451 interned Strings occupying 5652928 bytes.
+
+
+
+
+tomcat IO 优化
+<Connector port="80" protocol="org.apache.coyote.http11.Http11NioProtocol" 
+    connectionTimeout="20000" 
+    URIEncoding="UTF-8" 
+    useBodyEncodingForURI="true" 
+    enableLookups="false" 
+    redirectPort="8443" />

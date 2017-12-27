@@ -1,0 +1,11 @@
+112.74.72.34
+
+top - 15:13:18 up  4:10,  4 users,  load average: 0.02, 0.06, 0.06
+Tasks: 127 total,   1 running, 126 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  3.0 us,  0.7 sy,  0.0 ni, 96.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem :  3619012 total,  1255848 free,  1624624 used,   738540 buff/cache
+KiB Swap:        0 total,        0 free,        0 used.  1790560 avail Mem 
+
+  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND                                                           
+ 1066 devops    20   0 5097992 1.358g  14148 S   1.7 39.3   2:55.83 java                                                              
+ 2522 root      20   0 1402972  65604  10796 S   4.7  1.8   0:08.93 java    

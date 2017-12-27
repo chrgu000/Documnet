@@ -1,0 +1,79 @@
+下载redis
+	wget http://download.redis.io/releases/redis-3.0.7.tar.gz
+redis 安装
+	redis-3.0.7.tar.gz
+	mkdir /usr/local/redis
+	mv redis-3.0.7 /usr/local/redis
+	#使用devops 启动redis
+	chown devops:devops /usr/local/redis -R
+	vim utils/install_server.sh 修改下面几处
+		#修改配置文件的位置，根据个人习惯，也可以不修改，在后面的过程中手动输入
+		_REDIS_CONFIG_FILE="/usr/local/redis/redis.conf"
+		#日志文件的目录
+		_REDIS_LOG_FILE="/usr/local/redis/log/redis_$REDIS_PORT.log"
+		#数据目录
+		_REDIS_DATA_DIR="/usr/local/redis/lib/redis/$REDIS_PORT"
+
+	[root@iZwz9fvttmu9vkeoz6gq81Z redis]# utils/install_server.sh 
+	Welcome to the redis service installer
+	This script will help you easily set up a running redis server
+
+	Please select the redis port for this instance: [6379] 
+	Selecting default: 6379
+	Please select the redis config file name [/usr/local/redis/redis.conf] #上面修改的目录现在变成默认的，直接敲回车
+	Selected default - /usr/local/redis/redis.conf
+	Please select the redis log file name [/usr/local/redis/log/redis_6379.log] 
+	Selected default - /usr/local/redis/log/redis_6379.log
+	Please select the data directory for this instance [/usr/local/redis/lib/redis/6379] 
+	Selected default - /usr/local/redis/lib/redis/6379
+	Please select the redis executable path [] /usr/local/redis/bin/redis-server #这里是空白的，需要手动补齐
+	Selected config:
+	Port           : 6379
+	Config file    : /usr/local/redis/redis.conf
+	Log file       : /usr/local/redis/log/redis_6379.log
+	Data dir       : /usr/local/redis/lib/redis/6379
+	Executable     : /usr/local/redis/bin/redis-server
+	Cli Executable : /usr/local/bin/redis-cli
+	Is this ok? Then press ENTER to go on or Ctrl-C to abort.
+	Copied /tmp/6379.conf => /etc/init.d/redis_6379
+	Installing service...
+	Successfully added to chkconfig!
+	Successfully added to runlevels 345!
+	Starting Redis server...
+	Installation successful!
+
+修改redis 配置文件
+	vim /usr/local/redis/redis.conf
+		#以守护进程的方式启动
+		daemonize yes
+		#绑定本机的ip地址，让redis只监听在指定的地址上
+		bind 10.26.88.11 127.0.0.1
+		#修改pid文件的路径
+		pidfile /usr/local/redis/run/redis_6379.pid
+		#连接redis 需要输入密码，此密码需要足够长
+		requirepass Whva9oEaPrvLpk9baqfEe43KMMF3hmslDM5RcOUa
+
+redis 密码 Whva9oEaPrvLpk9baqfEe43KMMF3hmslDM5RcOUa
+启动redis: 
+	/etc/init.d/redis_6379 start
+查看redis是否启动 
+	/etc/init.d/redis_6379 status
+将redis加入开机自启动 
+	chkconfig redis_6379 on
+连接redis 方式
+	第一种(远程/本机)：redis-cli -h 10.26.88.11 -a Whva9oEaPrvLpk9baqfEe43KMMF3hmslDM5RcOUa
+	第二种(本机):redis-cli -a Whva9oEaPrvLpk9baqfEe43KMMF3hmslDM5RcOUa
+停止redis 首先需要连接上redis
+
+	10.26.88.11:6379> shutdown
+	not connected> quit
+redis 配置文件
+	/usr/local/redis/redis.conf
+
+测试redis是否安装成功，连接上redis，创建key:redis，并赋值，然后查看键redis的值
+[devops@iZwz9fvttmu9vkeoz6gq81Z redis]$ redis-cli  -a Whva9oEaPrvLpk9baqfEe43KMMF3hmslDM5RcOUa
+127.0.0.1:6379> set redis hello
+OK
+127.0.0.1:6379> keys *
+1) "redis"
+127.0.0.1:6379> 

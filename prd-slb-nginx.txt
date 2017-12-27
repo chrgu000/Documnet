@@ -1,0 +1,277 @@
+
+nginx.conf
+user  nginx;
+worker_processes  4;
+
+#error_log  logs/error.log;
+error_log  logs/error.log  notice;
+#error_log  logs/error.log  debug;
+#error_log  logs/error.log  info;
+
+#pid        logs/nginx.pid;
+
+
+events {
+    use epoll;
+    worker_connections  51200;
+}
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+
+    log_format  main  '$remote_addr $http_x_connecting_ip - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent"  $request_time';
+
+    access_log  logs/access.log  main;
+
+    sendfile        on;
+    send_timeout    90;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+    gzip  on;
+    gzip_types text/plain;
+    client_max_body_size 50m;
+    client_body_buffer_size 1024k;
+    add_header  X-WebServer-Time '$request_time';
+    proxy_buffering    off;
+    proxy_set_header   Host $host;
+    proxy_set_header   X-Real-IP $remote_addr;
+    proxy_set_header   X-Scheme $scheme;
+    proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+    #proxy_set_header   Host $http_host;
+    proxy_set_header   Upgrade $http_upgrade;
+    proxy_set_header   Connection "upgrade";
+    proxy_http_version 1.1;
+    proxy_connect_timeout 90;
+    #----------------------------------------------------------------
+    #nginx ---> tomcat http
+    upstream ibdp2p-backend{
+       server 10.116.24.193:8080;
+    }
+    #----------------------------------------------------------------
+
+    include /usr/local/nginx/conf.d/*.conf;
+ 
+}
+
+ibd_443.conf
+server {
+        #-----------------------------------------------------------------------
+        # port 443
+        listen       10.116.24.193:443;
+        #-----------------------------------------------------------------------
+        server_name  www.ibdp2p.com;
+		
+		#----------------------------------------------------------------------
+        # 由于购买了知道创宇的高仿，需要配置这段nginx日志里才会显示真实访问者的ip地址
+        proxy_set_header x-client $http_x_connecting_ip;
+        #----------------------------------------------------------------------
+        include /usr/local/nginx/conf.static/static.conf;
+
+        #----------------------------------------------------------------------
+        
+        #-----------------------------------------------------------------------
+        #授权微信公众号登陆
+        location ~ MP_verify_VlpMsODKEghljTBb.txt {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal;
+        }
+
+        #---------------------------------------------------------------------------------
+        #机器人扫描返回http status code 444
+        # 由于nginx if条件判断不支持多条件也不支持嵌套，这里需要同时满足$http_user_agent 
+		# 为"^$" 而且$uri 为slb，才可以访问.如果user-agent 满足下面的类型或者为空，$uri又
+		# 不匹配slb，就拒绝访问
+        set $flag 0;
+        if ($http_user_agent ~* python|googlebot|bingbot|yisouspider|semrushbot|mj12bot|ahrefsbot|slurp|sougou) {
+                set $flag 1;
+        }
+        #当 url 为slb user-agent 为空 设置flag 为112
+        if ($http_user_agent ~* ^$) {
+                set $flag "${flag}1";
+        }
+        if ($uri ~ slb) {
+                set $flag "${flag}2";
+        }
+        #当$flag 为"11"的时候拒绝访问，表示上面的user-agent 和空的user-agent 都拒绝访问
+        if ($flag = "11") {
+                return 444;
+        }
+        #---------------------------------------------------------------------------------
+        #slb 健康状态监测
+       
+        location /slb/SLB-HC.html {
+                if ($request_method != HEAD) {
+                        return 444;
+                }
+                access_log logs/slbs.log main;
+                #access_log /dev/null;
+                proxy_set_header Request-Url $request_uri;
+                proxy_pass http://10.116.24.193:8080/slb/SLB-HC.html;
+        }
+        #---------------------------------------------------------------------------------
+        #---------------------------------------------------------------------------------
+        #第三方合同迁移至87
+        #location /data/thirdparty {
+        #       proxy_pass http://10.26.88.11:2014/thirdparty;
+        #}
+        #---------------------------------------------------------------------------------
+        #拒绝以这些类型结尾的请求
+        location ~ \.(rar|zip|tar|gz|xz|7z|txt|php|bz2|jar|z|aps|aspx|sql)$ {
+                return 444;
+        }
+        #---------------------------------------------------------------------------------
+        location / {
+                #-------------------------------------------------------------------------
+                #网站维护的时候，需要挂载维护页面将/opt/sdp/ibdp2p/maintenance.enable.bak 这个文件的后缀.bak 去掉
+                if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                        return 503;
+                }
+                #-------------------------------------------------------------------------
+                proxy_pass http://ibdp2p-backend;
+        }
+        #---------------------------------------------------------------------------------
+        location ~ ^(.*)/.svn/{
+                return 444;
+        }
+        location /portal/html/app/spiderPc.html {
+                return 444;
+        } 
+        location ^~ /(images|js|css) {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/;
+        }
+        location ^~ /share {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/;
+        }
+        location /mbm {
+                if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                        return 503;
+                }
+                proxy_pass http://100.115.3.9:8080/mbm;
+        }
+        # 66 上面没有图片的时候跳转至87
+        location /mbm/mbmResource/sealcontract {
+                proxy_pass http://10.46.120.2:8080/mbm/mbmResource/sealcontract;
+                proxy_intercept_errors on;
+                error_page 404 @pdf;
+        }
+        
+        location @pdf {
+            proxy_pass http://10.26.88.11:2014$uri;
+        }
+        #---------------------------------------------------------------------------------
+
+        location ^~ /mbm/api {
+                proxy_pass http://100.115.3.9:8080/mbm/api;
+        }
+   
+        location ^~ /mbm/uc/api {
+                proxy_pass http://100.115.3.9:8080/mbm/uc/api;
+        }
+
+        location  /attach/ {
+                root /opt/sdp/ibdp2p/tomcat/webapps/pms/;
+        }
+
+        location ^~ /mbm/mbmResource/creditcontract {
+                proxy_pass http://100.115.3.9:8080/mbm/mbmResource/creditcontract;
+        }
+
+        location /mobile {
+                if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                        return 503;
+                }
+                proxy_pass http://ibdp2p-backend/mobile;
+        }
+        location ^~ /mobile/(images|wap|js|css) {
+                root /opt/sdp/ibdp2p/tomcat/webapps/mobile/;
+        }       
+        location /pms {
+                if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                        return 503;
+                }
+                proxy_pass http://ibdp2p-backend/pms;
+        }
+        location ^~ /pms/(images|js|css) {
+                root /opt/sdp/ibdp2p/tomcat/webapps/pms/;
+        }
+        location /Maintenance {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/html/;
+        }   
+
+        location /Gifts {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/html/;
+        }   
+        location /guarantee {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/html/;
+        }   
+        location /noStock {
+                root /opt/sdp/ibdp2p/tomcat/webapps/portal/html/;
+        }   
+        location ^~ /manager {
+                return 444;
+        }
+        location @maintenance{
+                rewrite ^ http://www.ibdp2p.com/Maintenance/index.html break;
+        }
+        error_page   503  @maintenance;
+}
+ibd_80.conf
+server {
+        #-----------------------------------------------------------------------
+        # port 80
+        listen       10.116.24.193:80;
+        location / {
+                return 301 https://www.ibdp2p.com$request_uri;
+        }
+
+        location /slb/SLB-HC.html {
+                if ($request_method != HEAD) {
+                        return 444;
+                }
+                access_log logs/slb.log main;
+                #access_log /dev/null;
+                proxy_set_header Request-Url $request_uri;
+                proxy_pass http://10.116.24.193:8080/slb/SLB-HC.html;
+        }
+}
+
+
+[devops@prd-2 conf.d]$ pwd
+/usr/local/nginx/conf.d
+[devops@prd-2 conf.d]$ cat ../conf.static/static.conf 
+location /data/static/html/invest {
+        alias /data/static/html/invest;
+}
+location /invest/creditInfo.action {
+        if ($args ~* "creditId=(\d+)$") {
+                set $c_id $1;
+                set $c_bid_var "creditInfo-";
+                set $c_bid_file_var $c_bid_var$c_id.html;
+        }
+
+        if (-f /data/static/html/invest/$c_bid_file_var) {
+                proxy_pass http://10.116.24.193/data/static/html/invest/$c_bid_file_var;
+        }
+        proxy_pass http://10.116.24.193:8080/invest/creditInfo.action;
+}
+location /invest/json {
+        root /data/static/html;
+}
+
+location /invest/rightInfo.action {
+        if ($args ~* "repaymentId=(\d+)$") {
+                set $r_id $1;
+                set $r_bid_var "rightInfo-";
+                set $r_bid_file_var $r_bid_var$r_id.html;
+        }
+
+        if (-f /data/static/html/invest/$r_bid_file_var) {
+                proxy_pass http://10.116.24.193/data/static/html/invest/$r_bid_file_var;
+        }
+        proxy_pass http://10.116.24.193:8080/invest/rightInfo.action;
+} 

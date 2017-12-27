@@ -1,0 +1,198 @@
+sit.ibdp2p.com  全站https
+第一步：nginx ssl
+都二步：配置tomcat ssl
+nginx 配置文件
+
+	user nginx nginx;
+	worker_processes  4;
+
+	error_log  logs/error.log  notice;
+
+	pid        logs/nginx.pid;
+
+
+	events {
+	    use epoll; 
+	    worker_connections  1024;
+	}
+
+	http {
+	    include       mime.types;
+	    include       /usr/local/nginx/conf/conf.d/*.conf;
+	    default_type  application/octet-stream;
+
+	    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+	                      '$status $body_bytes_sent "$http_referer" '
+	                      '"$http_user_agent"-- "$http_x_forwarded_for" $request_time';
+
+	    access_log  logs/access.log  main;
+
+	    sendfile        on;
+
+	    keepalive_timeout  65;
+
+	    add_header  X-WebServer-Time '$request_time';
+	    gzip  on;
+	    gzip_types text/plain;
+	    client_max_body_size 50m;
+
+	    proxy_buffering    off;
+	    proxy_set_header   X-Real-IP $remote_addr;
+	    proxy_set_header   X-Scheme $scheme;
+	    proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+	    proxy_set_header   Host $http_host;
+	    proxy_set_header   Upgrade $http_upgrade;
+	    proxy_set_header   Connection "upgrade";
+	    proxy_http_version 1.1; 
+
+	    proxy_cache_path /tmp/cache levels=1:2 keys_zone=cache_one:200m inactive=15d max_size=100g;
+	    proxy_cache_key  "$request_uri";
+	    proxy_cache cache_one;
+	    proxy_cache_valid 200 15d;
+	    #expires 15d; 	    
+	  
+	    upstream ibdp2p-backend {
+	        #server 10.45.181.104:8443;
+	        #下一步tomcat ssl 需要使用这条
+	        server 10.45.181.104:8080;
+	    }
+
+
+		server {
+	        listen       80;
+	        #ssl 相关的配置
+	        listen       443 ssl;
+	        server_name  sit.ibdp2p.com;
+	    	ssl_certificate   /usr/local/nginx/sslkey/213947663180375.pem;
+	    	ssl_certificate_key  /usr/local/nginx/sslkey/ibdsitprivate.key;
+	    	ssl_session_timeout 5m;
+	    	ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+	    	ssl_ciphers AESGCM:ALL:!DH:!EXPORT:!RC4:+HIGH:!MEDIUM:!LOW:!aNULL:!eNULL;
+	    	#当客户端请求80端口跳转至443端口
+			#if ($server_port = 80) {
+			#	return 301 https://$server_name$request_uri;
+			#}
+	        location / {
+
+				if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+					return 503;
+				}
+				proxy_pass http://ibdp2p-backend;
+	        	#proxy_cache		tmpcache;
+				#proxy_cache_key		$uri$is_args$args;
+				#proxy_cache_purge	PURGE from 127.0.0.1;
+	        }
+
+			## Cache_proxy Purge
+			location ~ /purge(/.*){
+			allow            127.0.0.1;   
+			allow            113.110.252.63;  
+			allow            113.91.165.206; 
+			#deny            all;
+			proxy_cache_purge    cache_one   $host$1$is_args$args;
+			error_page 404 =200 /purge$1;
+			}
+	 
+	        location ^~ /(images|js|css) {
+	            root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/;
+	        }
+	 		#PDF store in sit1
+		    location /mbm/mbmResource {
+		          root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/;
+		    }
+
+	        location /mbm {
+				if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+	                return 503;
+	            }
+				proxy_pass http://ibdp2p-backend/mbm; 	    
+			}
+
+			location ^~ /share {
+	        	root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/;
+	    	}
+
+			#显示附件
+			location  ^~ attach {
+				root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/pms/;
+			}
+
+	   
+	        location ^~ /mbm/(images|js|css) {
+	            root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/mbm/;
+	        }
+
+	        location ^~ /mbm/api {
+	          #  deny all;
+		    proxy_pass http://ibdp2p-backend/mbm/api;
+	        }
+
+	   
+	        location ^~ /mbm/uc/api {
+	         #   deny all;
+		    proxy_pass http://ibdp2p-backend/mbm/uc/api;
+	        }
+			
+	        location /appSvr {
+				if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+					return 503;
+				}
+	              #proxy_pass http://120.76.41.134:8080/appSvr;
+	            proxy_pass http://ibdp2p-backend/appSvr;
+	 	    }
+
+	    	#jenkins
+	       	location /jenkins {
+				#proxy_pass http://10.45.181.104:8089/jenkins;
+				#Jenkins ssl 端口8453
+				proxy_pass https://10.45.181.104:8453/jenkins;
+	       }
+	 
+	        location ^~ /mobile/(images|wap|js|css) {
+	             root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/mobile/;
+	        }
+	        
+			location /pms {
+				if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+					return 503;
+				}
+				proxy_pass http://ibdp2p-backend/pms;
+			}
+		
+			location ^~ /pms/(images|js|css) {
+				root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/pms/;
+			}
+		
+			location /Maintenance {
+				root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+			}   
+
+			location ^~ /manager {
+			#	deny all;
+			}
+			
+			location @maintenance{
+				rewrite ^ http://sit.ibdp2p.com/Maintenance/index.html break;
+			}
+			
+	        error_page   503  @maintenance;
+	    }
+	   
+	}
+
+	tomcat ssl  配置文件conf/server.xml
+		<Connector port="8443" address="10.45.181.104" protocol="org.apache.coyote.http11.Http11Protocol"
+	               maxThreads="150" SSLEnabled="true" scheme="https" secure="true"
+	               clientAuth="false" sslProtocol="TLS"
+	               keystoreFile="/opt/sdp/ibdp2p/apache-tomcat-7.0.65/ssl/www.ibdp2p.com.jks"
+	               keystorePass="Ld9cEhJsGsEEBY47" />
+	 测试将8443改为443，http那个443也启动了
+
+
+
+
+问题
+	1、attach 目录下的图片请求的协议是http，正常应该是https
+	2、合作伙伴，包含有http，正常应该是https
+		<a href="http://www.zlysz.com/" style="background-image: url(http://sit.ibdp2p.com//attach/cmsResource/E0DECB4DAD1CA8200D609BE09377737F20150528151558172.png)" target="_blank"></a>
+	3、

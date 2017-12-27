@@ -1,0 +1,128 @@
+PRD-2 19.23.142.229   10.29.66.10
+	root  密码 SniqkNBrsS7T5pSh0sS3
+	devops 密码 IqETnKY26Ku9NUzL
+	ibd	   密码 u7OiSnfFW6BnGoNg
+	阿里云web页面远程连接rlj862
+PRD-1
+	devops 密码 IqETnKY26Ku9NUzL
+	ibd	   密码 u7OiSnfFW6BnGoNg
+APP-2 120.76.202.76  10.26.3.79
+	root 密码 iw4SO3iBupXc4F2a4iDf
+	devops 密码 w5Tl3frq5lbIvZOZ
+	阿里云web页面远程连接rgc563
+APP-1
+	ibd 密码：jNAbQZ1OhOxo6TjO
+	devops 密码：HahDzCFQeBZuIo5H
+MBM
+	ibd 密码：FUrcAB7ZgQKGBPBf
+	devops 密码：nMh0hVyN0EON4kph
+	
+CORE 
+	ibd 密码：FUrcAB7ZgQKGBPBf
+	devops 密码：nMh0hVyN0EON4kph
+sit
+	ibd 密码：BBzIPwefFMSAY6gX
+	devops 密码：kA7AihAEUuakrz9l
+svn
+	ibd 密码：Fd6T7PXf3K3i9bFc
+	
+redis 
+	root r5tSJ6kpHGjDa67DJlaQ
+	devops fT1Fu0zSIQWt76gE
+	ibd S2yDBacYg4j1EigQ
+	阿里云web页面远程连接 86oe2r
+	redis 密码：RsXDST8ljaVcGW4TTCJu6v223ukOkLUK
+	redis 访问方式 redis-cli -a RsXDST8ljaVcGW4TTCJu6v223ukOkLUK
+	已经修改了path路径可以在任意目录下直接运行redis-cli 和 redis-server.redis 开机自启动
+	java 安装路径 /usr/java/default  安装的jdk 1.7 和mbm保持一样。环境变量已设置了
+堡垒机
+	登录用户名：13823584849  李江波
+	密码：mpaRTzwngIaeqU2T#
+	登录用户名：15999534925  余朝丰
+	密码：9J8Zof9dsU6te7hW$
+	登录用户名: 18675158842  易礼春
+	密码:nGaly1ZR208xeIhQ#
+	登录用户名:18902832378   魏以明
+	密码:YJb1Gt2SvlEHHCyu#
+	登录用户名:18566762652   罗冬
+	密码:juZ13BcZw9iiLD1u$
+	登录用户名:17688707379   宋志
+	密码:l5EtIcqHrKZHmyo8#
+	登录用户名:13242990626   林海萍
+	密码:wfe3asbrUZlc5Rdp$
+	登录用户名:18620397282   刘文
+	密码:KrmMDLJ9W1PK771S#
+	登录用户名：13632402647  林博丰
+	密码:h0uEEQDH8LxqVNo8$
+	
+134 --> 66 10.46.120.2:8080
+134 --> 87 10.26.88.11:8081
+
+
+10.26.3.79		app2
+10.46.120.79	app1
+10.116.24.193	prd1
+10.29.66.10		prd2
+10.46.120.2		mbm
+10.26.88.11		core
+10.45.181.104	sit
+10.116.62.235	svn
+	
+ssh -p 1410 devops@app-1
+ssh -p 1410 devops@app-2
+ssh -p 1410 devops@prd-1
+ssh -p 1410 devops@prd-2
+ssh -p 1410 devops@mbm
+ssh -p 1410 devops@core
+ssh -p 1601 devops@sit
+ssh -p 1601 ibd@svn
+
+scp -P 1410 file devops@app-1:/tmp
+scp -P 1410 file devops@app-2:/tmp
+scp -P 1410 file devops@prd-1:/tmp
+scp -P 1410 file devops@prd-2:/tmp
+scp -P 1410 file devops@mbm:/tmp
+scp -P 1410 file devops@core:/tmp
+scp -P 1601 file devops@sit:/tmp
+scp -P 1601 file ibd@svn:/tmp
+
+
+负载均衡的地址段
+100.64.0.0/10、10.158.0.0/16、10.159.0.0/16和10.49.0.0/16
+
+数据库审计 系统管理员密码
+用户名:sysadmin 
+密码:QINFjUWwXRMAhzC4
+
+审计员
+用户名:sysauditor
+密码:M96GTjxi4HY6sZd7
+
+登录地址 https://119.23.174.29
+
+192.168.1.206 
+root 密码：hEx16o7CABsxlenK
+
+192.168.1.208
+root 密码：KsoUc9Ml0tQNnifr
+
+商城ECS配置低  prd
+ip:119.23.161.237
+用户名:root
+密码：Lozn8XVuZ4w17gZD69Vw
+终端密码：13er6t
+用户名：devops
+密码：JfA7pT3L1Ue2YTPp
+用户名：ibd
+密码：zFsN2zvryo4KBhfq
+ssh端口 1410
+
+商城ECS配置高  mbm
+ip:120.77.238.74
+用户名：root
+密码：VpMD4N2KNwXjQATEKGgg
+用户名：devops
+密码：1v9j7EmYL7Gqy36p
+用户名：ibd
+密码：PwqoXK9Tv2Oiyu7C
+ssh 端口 1410

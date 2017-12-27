@@ -1,0 +1,30 @@
+yum -y install gcc pcre-devel openssl-devel
+LuaJIT-2.0.4.tar.gz lua-nginx-module-0.10.6.tar.gz ngx_devel_kit-0.3.0.tar.gz nginx-1.8.1.tar.gz
+tar xf LuaJIT-2.0.4.tar.gz
+cd /root/LuaJIT-2.0.4
+make PREFIX=/usr/local/luajit 
+make install PREFIX=/usr/local/luajit
+
+echo "export LUAJIT_LIB=/usr/local/luajit/lib" >> /etc/profile.d/luajit.sh
+echo "export LUAJIT_INC=/usr/local/luajit/include/luajit-2.0" >> /etc/profile.d/luajit.sh
+source /etc/profile.d/luajit.sh
+
+tar xf lua-nginx-module-0.10.6.tar.gz
+
+tar xf ngx_devel_kit-0.3.0.tar.gz
+
+tar xf nginx-1.8.1.tar.gz
+
+./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-http_ssl_module --with-http_realip_module --with-http_addition_module --with-http_sub_module --with-http_dav_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_secure_link_module --with-http_stub_status_module --with-http_auth_request_module --with-file-aio --without-http_fastcgi_module --without-http_uwsgi_module --without-http_scgi_module --with-cc-opt='-O2 -g -pipe -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m64 -mtune=generic' --with-ld-opt=-Wl,-rpath,/usr/local/luajit/lib --add-module=/root/ngx_devel_kit-0.3.0 --add-module=/root/lua-nginx-module-0.10.6
+
+make -j 4 && make install
+
+[root@localhost nginx-1.10.2]# ln -sv /usr/local/nginx/sbin/nginx /usr/sbin/nginx
+
+[root@localhost nginx]# groupadd -r -g 307 nginx
+[root@localhost nginx]# useradd -r -g 307 -u 307 -M -s /sbin/nologin nginx
+
+open files                      (-n) 1024
+stack size              (kbytes, -s) 8192
+
+

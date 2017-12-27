@@ -1,0 +1,170 @@
+elk
+	logstash  自定义日志
+	'$remote_addr - $remote_user [$time_local] "$request" ' '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" "$http_x_forwarded_for" $request_time'
+
+
+	%{IPORHOST:remote_addr} - (%{USERNAME:user}|-) \[%{HTTPDATE:log_timestamp}\] \"(?:%{WORD:method}%{NOTSPACE:request}(?:%{URIPROTO:proto}/%{NUMBER:httpversion})?|%{DATA:rawrequest})\" %{NUMBER:http_status_code} (?:%{NUMBER:bytes_read}|-) %{QS:referrer} %{QS:agent} %{QS:xforwardedfor} %{NUMBER:time_duration:float}
+
+
+
+	$remote_addr		--->%{IPORHOST:remote_addr}
+	$remote_user		--->(%{USERNAME:user}|-)
+	[$time_local]		--->\[%{HTTPDATE:log_timestamp}\]
+	$request 			--->(?:%{WORD:method} %{NOTSPACE:request}(?:%{URIPROTO:proto}/%{NUMBER:httpversion})?|%{DATA:rawrequest})
+	$status 			--->%{NUMBER:http_status_code}
+	$body_bytes_sent	--->(?:%{NUMBER:bytes_read}|-)
+	$http_referer 		--->%{QS:referrer}
+	$http_user_agent 	--->%{QS:agent}
+	$http_x_forwarded_for --->%{QS:xforwardedfor}
+	$request_time	--->%{NUMBER:time_duration:float}
+
+
+
+	{
+  		"remote_addr": [
+    		[
+      			"111.221.252.33"
+    		]
+  		],
+  		"HOSTNAME": [
+		    [
+		      "111.221.252.33"
+		    ]
+  		],
+	  	"IP": [
+		    [
+	     		null
+	    	]
+  		],
+	  	"IPV6": [
+		    [
+		      null
+		    ]
+	  	],
+	  	"IPV4": [
+		    [
+		      null
+		    ]
+	  	],
+	  	"user": [
+		    [
+		      "-"
+		    ]
+		],
+  		"log_timestamp": [
+		    [
+		      "22/Dec/2016:18:43:54 +0800"
+		    ]
+		],
+  		"MONTHDAY": [
+		    [
+		      "22"
+		    ]
+  		],
+  		"MONTH": [
+		    [
+		      "Dec"
+		    ]
+  		],
+  		"YEAR": [
+		    [
+		      "2016"
+		    ]
+  		],
+  		"TIME": [
+		    [
+		      "18:43:54"
+		    ]
+  		],
+  		"HOUR": [
+		    [
+		      "18"
+		    ]
+  		],
+  		"MINUTE": [
+		    [
+		      "43"
+		    ]
+  		],
+  		"SECOND": [
+		    [
+		      "54"
+		    ]
+  		],
+  		"INT": [
+		    [
+		      "+0800"
+		    ]
+  		],
+  		"method": [
+		    [
+		      null
+		    ]
+  		],
+  		"request": [
+		    [
+		      null
+		    ]
+  		],
+  		"proto": [
+		    [
+		      null
+		    ]
+  		],
+  		"httpversion": [
+		    [
+		      null
+		    ]
+  		],
+  		"BASE10NUM": [
+		    [
+		      null,
+		      "200",
+		      "46",
+		      "0.077"
+		    ]
+  		],
+  		"rawrequest": [
+		    [
+		      "GET /app/receiveList.action?shareReq.shareId=201612220031392184339&shareReq.creditMode=1&shareReq.creditOrRightId=539 HTTP/1.1"
+		    ]
+  		],
+  		"http_status_code": [
+		    [
+		      "200"
+		    ]
+  		],
+  		"bytes_read": [
+		    [
+		      "46"
+		    ]
+  		],
+  		"referrer": [
+		    [
+		      ""http://www.ibdp2p.com/html/app/invest_couponone.html?shareId=201612220031392184339&shareSource=02&shareChannel=1&shareOS=1&creditMode=1&creditOrRightId=539&ucName=135****4254&sign=0078e1b6fd3e050e176659bc558d36dc""
+		    ]
+  		],
+  		"QUOTEDSTRING": [
+		    [
+		      ""http://www.ibdp2p.com/html/app/invest_couponone.html?shareId=201612220031392184339&shareSource=02&shareChannel=1&shareOS=1&creditMode=1&creditOrRightId=539&ucName=135****4254&sign=0078e1b6fd3e050e176659bc558d36dc"",
+		      ""Mozilla/5.0 (iPhone; CPU iPhone OS 8_3 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Mobile/12F70 MicroMessenger/6.3.25 NetType/WIFI Language/zh_CN"",
+		      ""-""
+		    ]
+  		],
+  		"agent": [
+		    [
+		      ""Mozilla/5.0 (iPhone; CPU iPhone OS 8_3 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Mobile/12F70 MicroMessenger/6.3.25 NetType/WIFI Language/zh_CN""
+		    ]
+  		],
+  		"xforwardedfor": [
+		    [
+		      ""-""
+		    ]
+  		]
+	}
+
+
+NGUSERNAME [a-zA-Z\.\@\-\+_%]+
+NGUSER %{NGUSERNAME}
+NGINXACCESS %{IPORHOST:http_host} %{IPORHOST:clientip} \[%{HTTPDATE:timestamp}\] \"(?:%{WORD:verb} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion})?|%{DATA:rawrequest})\" %{NUMBER:response} (?:%{NUMBER:bytes}|-) %{QS:referrer} %{QS:agent} %{NUMBER:request_time:float} %{NUMBER:upstream_time:float}
+NGINXACCESS %{IPORHOST:http_host} %{IPORHOST:clientip} \[%{HTTPDATE:timestamp}\] \"(?:%{WORD:verb} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion})?|%{DATA:rawrequest})\" %{NUMBER:response} (?:%{NUMBER:bytes}|-) %{QS:referrer} %{QS:agent} %{NUMBER:request_time:float}

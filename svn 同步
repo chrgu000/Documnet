@@ -1,0 +1,182 @@
+svn 同步
+	源：外：112.74.93.70   内：10.116.62.235 	仓库目录：/var/svn/svnrepos
+	目：外：120.76.244.87  内：10.26.88.11 		仓库目录：/var/svn/svnrepos
+
+	搭建目标svn服务器
+		yum -y install subversion
+		mkdir /var/svn
+		svnadmin create /var/svn/svnrepos
+		cd /var/svn/svnrepos/hooks
+		vim pre-revprop-change
+			#!/bin/bash
+			exit 0;
+
+		chmod +x pre-revprop-change
+
+		scp -p 1601 ibd@112.74.93.70:/var/svn/svnrepos/conf/* /tmp
+
+		将源服务器的配置复制过来覆盖掉。这样目标服务器和源服务器的用户名和密码一样，路径相同只是IP地址不同
+		cp -f /tmp/authz /var/svn/svnrepos/conf/
+		cp -f /tmp/passwd /var/svn/svnrepos/conf/
+		cp -f /tmp/svnserve.conf /var/svn/svnrepos/conf/
+		启动 svn
+		svnserve -d -r /var/svn/svnrepos/
+
+	目标svn服务器搭建完毕
+
+	初始化
+
+	[root@iZwz9fvttmu9vkeoz6gq81Z conf]# svnsync init svn://10.26.88.11/ svn://10.116.62.235/
+		
+		Authentication realm: <svn://10.26.88.11:3690> /var/svn/svnrepos
+		Password for 'root':   	#目标服务器 root用户的密码
+		Authentication realm: <svn://10.26.88.11:3690> /var/svn/svnrepos
+		Username: yucf 			#svn 管理员的用户名和密码
+		Password for 'yucf':
+
+		-----------------------------------------------------------------------
+		ATTENTION!  Your password for authentication realm:
+
+		   <svn://10.26.88.11:3690> /var/svn/svnrepos
+
+		can only be stored to disk unencrypted!  You are advised to configure
+		your system so that Subversion can store passwords encrypted, if
+		possible.  See the documentation for details.
+
+		You can avoid future appearances of this warning by setting the value
+		of the 'store-plaintext-passwords' option to either 'yes' or 'no' in
+		'/root/.subversion/servers'.
+		-----------------------------------------------------------------------
+		Store password unencrypted (yes/no)? yes 	#是否存储svn的用户名和密码
+
+		Authentication realm: <svn://10.116.62.235:3690> /var/svn/svnrepos
+		Password for 'root':	#源服务器 root用户的密码
+		Authentication realm: <svn://10.116.62.235:3690> /var/svn/svnrepos
+		Username: yucf			#svn 管理员的用户名和密码
+		Password for 'yucf':
+
+		-----------------------------------------------------------------------
+		ATTENTION!  Your password for authentication realm:
+
+		   <svn://10.116.62.235:3690> /var/svn/svnrepos
+
+		can only be stored to disk unencrypted!  You are advised to configure
+		your system so that Subversion can store passwords encrypted, if
+		possible.  See the documentation for details.
+
+		You can avoid future appearances of this warning by setting the value
+		of the 'store-plaintext-passwords' option to either 'yes' or 'no' in
+		'/root/.subversion/servers'.
+		-----------------------------------------------------------------------
+		Store password unencrypted (yes/no)? yes 	#是否存储SVN的用户名和密码
+
+		Copied properties for revision 0.   # 出现这个表示成功
+
+	同步
+		[root@iZwz9fvttmu9vkeoz6gq81Z conf]# svnsync sync svn://10.26.88.11/
+		Transmitting file data .
+		Committed revision 1.
+		Copied properties for revision 1.
+		Transmitting file data .
+		Committed revision 2.
+		Copied properties for revision 2.
+		Committed revision 3.
+		Copied properties for revision 3.
+		Transmitting file data .
+		Committed revision 4.
+		Copied properties for revision 4.
+		Committed revision 5.
+		Copied properties for revision 5.
+		Transmitting file data ..
+		Committed revision 6.
+		Copied properties for revision 6.
+		Committed revision 7.
+		Copied properties for revision 7.
+		Transmitting file data ...................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+
+		出现类似这样的表示成功，等待同步完成即可。整个过程可能会很慢，速度取决于两个服务器之间的网络连接带宽。
+
+	最后需要验证。先验证容量.在目标服务器上，与源服务器的容量相同即可
+		du -sh /var/svn/svnrepos
+
+		在客户端(windows/linux) checkout  然后修改commit  测试是否成功。注意地址要是目标服务器的地址，路径与以前保持一致
+
+		
+		当从库发生修改后，在次与主库同步的时候会出现问题
+
+		svnsync: E000022: Destination HEAD (11421) is not the last merged revision (11420); have you committed to the destination without using svnsync?
+
+		解决方案：
+		[root@iZwz9fvttmu9vkeoz6gq81Z hooks]# svn proplist -v --revprop -r 0 file:///var/svn/svnrepos/
+		Unversioned properties on revision 0:
+		  svn:date
+		    2015-10-01T10:52:19.493781Z
+		  svn:sync-from-url
+		    svn://10.116.62.235
+		  svn:sync-from-uuid
+		    f7ce1cfb-2cfa-4140-85af-ce6e35b9222a
+		  svn:sync-last-merged-rev
+		    11420
+
+		[root@iZwz9fvttmu9vkeoz6gq81Z hooks]# svn propset --revprop -r 0 svn:sync-last-merged-version 11421 file:///var/svn/svnrepos/
+		#注意这里的版本号一定要是目标版本号。
+		property 'svn:sync-last-merged-version' set on repository revision 0
+		[root@iZwz9fvttmu9vkeoz6gq81Z hooks]# svn propset --revprop -r 0 svn:sync-last-merged-rev 11421 file:///var/svn/svnrepos/
+		property 'svn:sync-last-merged-rev' set on repository revision 0
+		[root@iZwz9fvttmu9vkeoz6gq81Z hooks]# echo $?
+		0
+		[root@iZwz9fvttmu9vkeoz6gq81Z hooks]# svnsync sync svn://10.26.88.11/
+		Transmitting file data .
+		svnsync: E200014: Base checksum mismatch on '/prd/code/appSvr/WEB-INF/classes/system.properties':
+		   expected:  acc872eadfefe2a650fa6c3d82956a4a
+		     actual:  c1fa43251a269a1555c2d788ada48272
+
+		[root@iZwz9fvttmu9vkeoz6gq81Z hooks]# echo $?
+		1
+
+		再次同步发行有个文件的checksum 校验和不对。这个时候的解决方法
+
+		首先要保证源库没有任何操作。在Windows客户端新建一个文件夹a(注意名字尽量不要有中午),使用TortoiseSVN做checkout.
+		URL:svn://源库的ip地址/prd/code/appSvr/WEB-INF/classes/
+		注意不用保存认证的用户名和密码，否则从库checkout的时候会报错
+		另外在新建一个文件夹b,使用TortoiseSVN做checkout。 URL：svn://目标库的ip地址/prd/code/appSvr/WEB-INF/classes/
+		然后删除system.properties (svn del)这个文件，然后从a文件中将system.properties 这个文件复制到b文件夹中，然后在b文件夹中将这个新增的文件提交至目标库。
+		再次同步更新就可以成功
+		[root@iZwz9fvttmu9vkeoz6gq81Z hooks]# svnsync sync svn://10.26.88.11/
+
+
+		如果有一个不完整的库(相对于源库)，想到源库同步完整，初始化的时候需要带上参数--allow-non-empty
+		svnsync init svn://192.168.1.206/ svn://112.74.93.70/ --allow-non-empty
+		然后在同步
+		svnsync sync svn://192.168.1.206/
+
+		这样就可以同步
+
+
+		svn 每个版本具体存放的位置
+		[root@sit revs]# pwd
+		/data/svn/svnrepos/db/revs
+		[root@sit revs]# ls
+		0  1  10  11  2  3  4  5  6  7  8  9
+		数字越大的文件夹存储的版本号就越新
+		[root@sit revs]# ll 11
+		total 13240
+		-r--r--r-- 1 root root    4472 Jun 21 22:58 11000
+		-r--r--r-- 1 root root   25425 Jun 21 22:58 11001
+		-r--r--r-- 1 root root    2051 Jun 21 22:58 11002
+		-r--r--r-- 1 root root    1988 Jun 21 22:58 11003
+		-r--r--r-- 1 root root    2040 Jun 21 22:58 11004
+		.........
+		可以看到11这个文件夹存储的从11000 -- 11999
+
+		升级SVN内核之前同步更新，是本地和版本库状态同步至最新
+
+
+
+
+
+
+
+
+
+

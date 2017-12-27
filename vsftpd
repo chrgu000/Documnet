@@ -1,0 +1,171 @@
+vsftpd 配置文件 vim /etc/vsftpd/vsftpd.conf
+	vi /etc/vsftpd/vsftpd.conf 
+ 
+		#服务器独立运行 
+		listen=YES 
+		#设定不允许匿名访问 
+		anonymous_enable=NO 
+		#设定本地用户可以访问。注：如使用虚拟宿主用户，在该项目设定为NO的情况下所有虚拟用户将无法访问 
+		local_enable=YES 
+		#使用户不能离开主目录 
+		chroot_list_enable=YES 
+		#设定支持ASCII模式的上传和下载功能 
+		ascii_upload_enable=YES 
+		ascii_download_enable=YES 
+		#PAM认证文件名。PAM将根据/etc/pam.d/vsftpd进行认证 
+		pam_service_name=vsftpd 
+		#设定启用虚拟用户功能 
+		guest_enable=YES 
+		#指定虚拟用户的宿主用户，CentOS中已经有内置的ftp用户了 
+		guest_username=ftp 
+		#设定虚拟用户个人vsftp的CentOS FTP服务文件存放路径。存放虚拟用户个性的CentOS FTP服务文件(配置文件名=虚拟用户名) 
+		user_config_dir=/etc/vsftpd/vuser_conf 
+		#配置vsftpd日志（可选） 
+		xferlog_enable=YES 
+		xferlog_std_format=YES 
+		xferlog_file=/var/log/xferlog 
+		dual_log_enable=YES 
+		vsftpd_log_file=/var/log/vsftpd.log 	
+1、控制主机访问：
+	tcp_wrappers=YES/NO
+	设置vsftpd是否与tcp wrapper相结合来进行主机的访问控制。默认值为YES。如果启用，则vsftpd服务器会检查/etc/hosts.allow 和/etc/hosts.deny 中的设置，来决定请求连接的主机，是否允许访问该FTP服务器。这两个文件可以起到简易的防火墙功能。
+	比如：若要仅允许192.168.10.1—192.168.10.254的用户可以连接FTP服务器，则在
+	/etc/hosts.allow
+	/etc/hosts.deny
+	文件中添加以下内容：
+	vsftpd:192.168.1.
+	vsftpd:192.168.1.12
+	vsftpd:192.168.1.0/255.255.255.0这里不能写成192.168.1.0/24
+
+2、控制用户访问：
+	vsftpd.ftpusers  #用于保存不允许进行FTP登录的本地用户帐号。就是vsftp用户的黑名单
+	vsftpd.user_list
+	（1）设置禁止vsftpd.user_list文件中的用户登录：要在主配置文件vsftpd.conf中修改如下两项，
+	userlist_enable=yes
+	userlist_deny=yes
+	说明：配置完以后，除了vsftpd.ftpusers文件和vsftpd.user_list文件中记录的ftp用户不能登录vsftp服务以外，其他的ftp用户都可以登录。
+
+
+	
+selinux 相关的设置
+setsebool -P ftp_home_dir=1	
+
+
+
+	设置vsftpd 命令的相关权限
+	# ABOR - abort a file transfer 取消文件传输
+　　# CWD - change working directory 更改目录
+　　# DELE - delete a remote file 删除文件
+　　# LIST - list remote files 列目录
+　　# MDTM - return the modification time of a file 返回文件的更新时间
+　　# MKD - make a remote directory 新建文件夹
+　　# NLST - name list of remote directory
+　　# PASS - send password
+　　# PASV - enter passive mode
+　　# PORT - open a data port 打开一个传输端口
+　　# PWD - print working directory 显示当前工作目录
+　　# QUIT - terminate the connection 退出
+　　# RETR - retrieve a remote file 下载文件
+　　# RMD - remove a remote directory
+　　# RNFR - rename from
+　　# RNTO - rename to
+　　# SITE - site-specific commands
+　　# SIZE - return the size of a file 返回文件大小
+　　# STOR - store a file on the remote host 上传文件
+　　# TYPE - set transfer type
+　　# USER - send username
+
+
+	FTP数字代码的意义
+		110 重新启动标记应答。
+		120 服务在多久时间内ready。
+		125 数据链路端口开启，准备传送。
+		150 文件状态正常，开启数据连接端口。
+		200 命令执行成功。
+		202 命令执行失败。
+		211 系统状态或是系统求助响应。
+		212 目录的状态。
+		213 文件的状态。
+		214 求助的讯息。
+		215 名称系统类型。
+		220 新的联机服务ready。
+		221 服务的控制连接端口关闭，可以注销。
+		225 数据连结开启，但无传输动作。
+		226 关闭数据连接端口，请求的文件操作成功。
+		227 进入passive mode。
+		230 使用者登入。
+		250 请求的文件操作完成。
+		257 显示目前的路径名称。
+		331 用户名称正确，需要密码。
+		332 登入时需要账号信息。
+		350 请求的操作需要进一部的命令。
+		421 无法提供服务，关闭控制连结。
+		425 无法开启数据链路。
+		426 关闭联机，终止传输。
+		450 请求的操作未执行。
+		451 命令终止:有本地的错误。
+		452 未执行命令:磁盘空间不足。
+		500 格式错误，无法识别命令。
+		501 参数语法错误。
+		502 命令执行失败。
+		503 命令顺序错误。
+		504 命令所接的参数不正确。
+		530 未登入。
+		532 储存文件需要账户登入。
+		550 未执行请求的操作。
+		551 请求的命令终止，类型未知。
+		552 请求的文件终止，储存位溢出。  
+		553 未执行请求的的命令，名称不正确。
+
+
+	vsftpd 双日志功能
+	/var/log/xferlog 
+	记录内容举例
+	Thu Sep 6 09:07:48 2007 7 192.168.57.1 4323279   /home/student/phpMyadmin-2.11.0-all-languages.tar.gz  b -i r student ftp 0 * c 
+	/var/log/vsftpd.log 
+	记录内容举例
+	Tue Sep 11 14:59:03 2007 [pid 3460]    CONNECT: Client "127.0.0.1"
+	Tue Sep 11 14:59:24 2007 [pid 3459] [ftp] OK LOGIN;Client "127.0.0.1" ,anon   password ”?"  
+	/var/log/xferlog日志文件中数据的分析和参数说明 
+
+
+
+	max_per_ip=1  #每个ip地址只能有建立一条ftp联机
+
+
+
+
+
+
+anonymous_enable=NO  						#禁止匿名用户登录
+local_enable=YES     						#开启本地用户登录，只有ftp用户能够登录，用于映射虚拟用户(df)
+write_enable=NO      						#只有读的权限，不能上传数据
+local_umask=022      	  					#权限掩码
+anon_upload_enable=NO 						#匿名用户不允许上传
+anon_mkdir_write_enable=NO 					#匿名用户不允许创建目录
+connect_from_port_20=NO 					#数据端口不使用默认的20端口
+pasv_enable=YES 							#使用被动模式
+pasv_min_port=5120 							#被动模式，数据端口的范围：5120-5125
+pasv_max_port=5125
+pasv_address=120.76.244.87 					#被动模式的绑定的IP地址
+chown_uploads=NO 							#上传上的数据不能修改属主和属组
+xferlog_enable=YES 							#开启日志
+xferlog_file=/var/log/xferlog  				#日志文件
+xferlog_std_format=YES 						#日志文件的格式
+async_abor_enable=YES 						#异步同步模式
+ascii_upload_enable=YES 					#开启二进制上传
+ascii_download_enable=YES 					#开启二进制下载
+ftpd_banner=Welcome to ibd FTP service.     #进入ftp提示信息
+chroot_local_user=YES 						#将用户禁锢在加目录，不能切换目录
+chroot_list_enable=NO 						#关闭切换目录的列外
+ls_recurse_enable=YES 						#关闭ls -l 命令，资源比较多的时候很浪费资源
+listen=YES 									#以守护进程的方式运行
+listen_port=21 								#命令端口21
+listen_ipv6=NO 								#关闭ipv6
+pam_service_name=vsftpd 					#使用pam认证
+userlist_enable=YES 						#开启黑名单用户列表
+tcp_wrappers=YES 							#使用host.allow 和 host.deny 设置白/黑名单
+use_localtime=YES 							#使用本地时间
+guest_enable=YES 							#开启虚拟用户，既登录ftp的用户不是操作系统用户。
+guest_username=ftp 							#将虚拟用户映射至ftp用户，此账号的权限很小，保证了ftp的安全
+user_config_dir=/etc/vsftpd/user_conf 		#虚拟用户文件列表，主要配置虚拟用户的权限

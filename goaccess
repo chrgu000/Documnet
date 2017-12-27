@@ -1,0 +1,135 @@
+
+goaccess 手册
+[root@ibd ~]# goaccess -h
+
+GoAccess - 1.1.1
+
+Usage: goaccess [ options ... ] -f log_file [-c][-M][-H][-q][-d][...]
+The following options can also be supplied to the command:
+
+Log & Date Format Options
+
+  --date-format=<dateformat>      - Specify log date format. e.g., %d/%b/%Y         年月日格式
+  --log-format=<logformat>        - Specify log format. Inner quotes need to be     日志格式
+                                    escaped, or use single quotes.
+  goaccess.conf 配置文件中配置goaccess所识别的日志格式                                  
+  log-format %h %^ %^ [%d:%t %^] "%r" %s %b "%R" "%u" %^ %T
+
+  nginx的日志格式 access日志
+
+  log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent"-- "$http_x_forwarded_for" $request_time';
+
+  1、goaccess 识别日志的格式，不同元素之间使用空格分隔。nginx的访问日志也是使用空格隔开
+  2、goaccess 识别日志的格式，需要与nginx相对应
+  3、goaccess 
+      %h            host (the client IP address, either IPv4 or IPv6)
+      %^            忽略这一项
+      [%d:%t %^]    nginx日志[$time_local] 其中包含时区，goaccess不支持时区的概念，所以忽略
+      %r            访问的URL
+      %s            http状态码
+      %b            body size
+      %R            referer
+      %u            User-Agent
+      %T            每个请求的时间，以毫秒为单位
+
+  --time-format=<timeformat>      - Specify log time format. e.g., %H:%M:%S
+
+User Interface Options
+
+  -c --config-dialog              - Prompt log/date/time configuration window.    配置文件配置日期和时间的格式
+  -i --hl-header                  - Color highlight active panel.                 显示颜色
+  -m --with-mouse                 - Enable mouse support on main dashboard.       在仪表盘上显示鼠标
+  --color=<fg:bg[attrs, PANEL]>   - Specify custom colors. See manpage for more   设置背景和前景颜色
+                                    details and options. 
+  --color-scheme=<1|2|3>          - Schemes: 1 => Grey, 2 => Green, 3 => Monokai.
+  --html-custom-css=<path.css>    - Specify a custom CSS file in the HTML report.
+  --html-custom-js=<path.js>      - Specify a custom JS file in the HTML report.
+  --html-prefs=<json_obj>         - Set default HTML report preferences.
+  --html-report-title=<title>     - Set HTML report page title and header.
+  --json-pretty-print             - Format JSON output w/ tabs & newlines.
+  --max-items                     - Maximum number of items to show per panel.
+                                    See man page for limits.
+  --no-color                      - Disable colored output.
+  --no-column-names               - Don't write column names in term output.
+  --no-csv-summary                - Disable summary metrics on the CSV output.
+  --no-progress                   - Disable progress metrics.
+  --no-tab-scroll                 - Disable scrolling through panels on TAB.
+  --no-html-last-updated          - Hide HTML last updated field.
+
+Server Options
+
+  --addr=<addr>                   - Specify IP address to bind server to.
+  --fifo-in=<path>                - Path to read named pipe (FIFO).
+  --fifo-out=<path>               - Path to write named pipe (FIFO).
+  --origin=<addr>                 - Ensure clients send the specified origin header
+                                    upon the WebSocket handshake.
+  --port=<port>                   - Specify the port to use.
+  --real-time-html                - Enable real-time HTML output.
+  --ssl-cert=<cert.crt>           - Path to TLS/SSL certificate.
+  --ssl-key=<priv.key>            - Path to TLS/SSL private key.
+  --ws-url=<url>                  - URL to which the WebSocket server responds.
+
+File Options
+
+  -f --log-file=<filename>        - Path to input log file.
+  -l --debug-file=<filename>      - Send all debug messages to the specified
+                                    file.
+  -p --config-file=<filename>     - Custom configuration file.
+  --invalid-requests=<filename>   - Log invalid requests to the specified file.
+  --no-global-config              - Don't load global configuration file.
+
+Parse Options
+
+  -a --agent-list                 - Enable a list of user-agents by host.        使用主机地址开启客户端浏览器的列表
+  -d --with-output-resolver       - Enable IP resolver on HTML|JSON output.      使用HTML格式使用该选项
+  -e --exclude-ip=<IP>            - Exclude one or multiple IPv4/6. Allows IP
+                                    ranges e.g. 192.168.0.1-192.168.0.10
+  -H --http-protocol=<yes|no>     - Set/unset HTTP request protocol if found.
+  -M --http-method=<yes|no>       - Set/unser HTTP request method if found.
+  -o --output=file.html|json|csv  - Output either an HTML, JSON or a CSV file.
+  -q --no-query-string            - Ignore request's query string. Removing the
+                                    query string can greatly decrease memory
+                                    consumption.
+  -r --no-term-resolver           - Disable IP resolver on terminal output.
+  --444-as-404                    - Treat non-standard status code 444 as 404.
+  --4xx-to-unique-count           - Add 4xx client errors to the unique visitors
+                                    count.
+  --all-static-files              - Include static files with a query string.
+  --crawlers-only                 - Parse and display only crawlers.
+  --date-spec=<date|hr>           - Date specificity. Possible values: `date`
+                                    (default), or `hr`.
+  --double-decode                 - Decode double-encoded values.
+  --enable-panel=<PANEL>          - Enable parsing/displaying the given panel.
+  --hour-spec=<hr|min>            - Hour specificity. Possible values: `hr`
+                                    (default), or `min` (tenth of a min).
+  --ignore-crawlers               - Ignore crawlers.
+  --ignore-panel=<PANEL>          - Ignore parsing/displaying the given panel.
+  --ignore-referer=<NEEDLE>       - Ignore a referer from being counted. Wild cards
+                                    are allowed. i.e., *.bing.com
+  --ignore-status=<CODE>          - Ignore parsing the given status code.
+  --num-tests=<number>            - Number of lines to test. >= 0 (10 default)
+  --real-os                       - Display real OS names. e.g, Windows XP, Snow
+                                    Leopard.
+  --sort-panel=PANEL,METRIC,ORDER - Sort panel on initial load. For example:
+                                    --sort-panel=VISITORS,BY_HITS,ASC. See
+                                    manpage for a list of panels/fields.
+  --static-file=<extension>       - Add static file extension. e.g.: .mp3.
+                                    Extensions are case sensitive.
+
+GeoIP Options
+
+  -g --std-geoip                  - Standard GeoIP database for less memory
+                                    consumption.
+  --geoip-database=<path>         - Specify path to GeoIP database file. i.e.,
+                                    GeoLiteCity.dat, GeoIPv6.dat ...
+
+Other Options
+
+  -h --help                       - This help.
+  -V --version                    - Display version information and exit.
+  -s --storage                    - Display current storage method. e.g., B+
+                                    Tree, Hash.
+  --dcf                           - Display the path of the default config
+                                    file when `-p` is not used.

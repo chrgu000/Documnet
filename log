@@ -1,0 +1,220 @@
+#!/bin/awk -f
+#分类按秒统计nginx日志中request/mts/query20/query30/rvs/rs/mts等等的http总请求数、成功数、错误数
+#
+BEGIN{
+          #name变量从shell脚本中获取
+          nginx[name]=0;
+          nginx_suc[name]=0;
+          mts[name]=0;
+          mts_suc[name]=0;
+          query20[name]=0;
+          query20_suc[name]=0;
+          query30[name]=0;
+          query30_suc[name]=0;
+          rvs[name]=0;
+          rvs_suc[name]=0;
+          rs[name]=0;
+          rs_suc[name]=0;
+          rtei[name]=0;
+          rtei_suc[name]=0;
+          #debug
+          #name="03/Nov/2012:09:00:01";
+          #print name,argv[1],argv[2]
+     }
+
+
+
+
+{
+
+
+
+
+
+ nginx[name]++
+
+ if($9<400)
+
+
+       {
+
+
+         nginx_suc[name]++
+
+
+       }
+
+
+
+ if(substr($7,2,8)=="MTServer")
+
+
+        { 
+          #counter_rs_all数组存放对应rvs数组时间段的RouterServer的请求次数
+          mts[name]++;
+          #debug
+          #print name;
+          #print rs[name],counter_rs_all[name];
+        }
+
+ if(substr($7,2,8)=="MTServer" && ($9<400))
+        
+        {
+          mts_suc[name]++;
+          #debug
+          #print name;
+          #print rs[name],counter_rs_suc[name];
+        }
+
+
+ 
+
+ if(substr($7,2,14)=="QueryServer2.0")
+
+
+        { 
+          query20[name]++;
+          #print name,query20[name];
+        }
+
+ if(substr($7,2,14)=="QueryServer2.0" && ($9<400))
+        
+        {
+          query20_suc[name]++;
+          #debug
+          #print name,query20[name];
+        }
+
+
+
+ if(substr($7,2,14)=="QueryServer3.0")
+
+
+        {
+          query30[name]++;
+          #debug
+          #print name,query30[name];
+        }
+
+ if(substr($7,2,14)=="QueryServer3.0" && ($9<400))
+
+
+        {
+          query30_suc[name]++;
+          #debug
+          #print name,query30_suc[name];
+        }
+ 
+
+
+
+
+
+ if (substr($7,2,11)=="RVServer3.0")
+        { 
+          rvs[name]++;
+          #print name,rvs[name];
+        }
+
+ if (substr($7,2,11)=="RVServer3.0" && ($9<400))
+        {
+          rvs_suc[name]++;
+          #debug
+          #print name,rvs_suc[name];
+        }
+
+
+ if(substr($7,2,12)=="RouteServer4")
+        {
+          rs[name]++;
+          #debug
+          #print name,rs[name];
+        } 
+
+ if(substr($7,2,12)=="RouteServer4" && ($9<400))
+        {
+          rs_suc[name]++;
+          #debug
+          #print name,rs_suc[name];
+        }
+
+    
+  if(substr($7,2,10)=="RTEIServer")
+        {
+          rtei[name]++;
+          #debug
+          #print name,rtei[name];
+        }
+
+ if(substr($7,2,10)=="RTEIServer" && ($9<400))
+        {
+          rtei_suc[name]++;
+          #debug
+          #print name,rtei_suc[name];
+        } 
+
+  if(substr($7,2,14)=="navidog2Advert")
+        {
+          advert[name]++;
+          #debug
+          #print name,advert[name];
+        }
+ if(substr($7,2,14)=="navidog2Advert" && ($9<400))
+        {
+          advert_suc[name]++;
+          #debug
+          #print name,advert_suc[name];
+        }
+
+
+  if(substr($7,2,13)=="navidog2Goods")
+        {
+          goods[name]++;
+          #debug
+          #print name,goods[name];
+        }
+ if(substr($7,2,13)=="navidog2Goods" && ($9<400))
+        {
+          goods_suc[name]++;
+          #debug
+          #print name,goods_suc[name];
+        }
+
+
+ if ($9==400)
+        {
+          http400++;
+          #debug
+          #print http400;
+        }
+
+
+ if (substr($7,2,15)=="VoiceInfoServer")
+        {
+          voiceinfo[name]++;
+          #debug
+          #print name,voiceinfo[name];
+        } 
+ 
+ if (substr($7,2,15)=="VoiceInfoServer" && ($9<400))
+        {
+          voiceinfo_suc[name]++;
+          #debug
+          #print name,voiceinfo_suc[name];
+        }
+
+
+ }      
+
+END{
+        #打印统计结果，
+        print name,nginx[name]+0,nginx_suc[name]+0,mts[name]+0,mts_suc[name]+0,query20[name]+0,query20_suc[name]+0,query30[name]+0,query30
+_suc[name]+0,rvs[name]+0,rvs_suc[name]+0,rs[name]+0,rs_suc[name]+0,rtei[name]+0,rtei_suc[name]+0,advert[name]+0,advert_suc[name]+0,goods[n
+ame]+0,goods_suc[name]+0,http400+0,voiceinfo[name]+0,voiceinfo_suc[name]+0
+   }
+
+
+awk 'BEGIN {ip_nginx[$1]==0} {ip_nginx[$1]++} END{print ip_nginx[$1]+0' /usr/local/nginx/logs/access.log
+
+
+sed  's#18/Jan/2017:#18/Jan/2017 #p' /usr/local/nginx/logs/access.log > ~/nginx.`date "+%F-%H:%M:%S"`.log

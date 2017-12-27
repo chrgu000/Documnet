@@ -1,0 +1,380 @@
+123 测试环境配置文件
+mysql 的配置文件 /etc/my.cnf
+[mysqld]
+
+datadir=/data/mysql_data/mysql
+socket=/data/mysql_data/mysql/mysql.sock
+log-bin = binlog
+symbolic-links=0
+
+user=mysql
+
+lower_case_table_names=1
+
+[mysqld_safe]
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+
+
+nginx的主配置文件 /usr/local/nginx/conf/nginx.conf
+
+user  nginx;
+worker_processes  4;
+events {
+    use epoll;
+    worker_connections  51200;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for" $request_time';
+    log_format  sit2  '$http_x_forwarded_for - $remote_user [$time_local] "$request" '
+		      '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" $request_time';
+
+    client_body_buffer_size 128k;
+    proxy_buffering    off;
+    proxy_set_header   X-Real-IP $remote_addr;
+    proxy_set_header   X-Scheme $scheme;
+    proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header   Host $http_host;
+    proxy_set_header   Upgrade $http_upgrade;
+    proxy_set_header   Connection "upgrade";
+    proxy_http_version 1.1;
+
+    upstream ibdp2p-backend-ssl {
+	server 10.45.181.104:8443;
+
+    }
+    upstream ibdp2p-backend {
+        server 10.45.181.104:8080;
+    }
+
+include /usr/local/nginx/conf.d/*.conf;
+}
+
+sit 80 端口 配置文件 /usr/local/nginx/conf.d/sit.conf
+
+server {
+        listen       80;
+        server_name  sit.ibdp2p.com;
+		#-------------------------------------------------------------
+		#单独配置访问日志和错误日志
+		access_log logs/access_sit.log main;
+		error_log logs/error_sit.log info;
+		#-------------------------------------------------------------
+
+		#-----------------------------------------------------------------------------------------------------
+		if ($http_user_agent ~* python|googlebot|bingbot|yisouspider|semrushbot|mj12bot|ahrefsbot|slurp|sougou|^$) {
+        return 444;
+        }
+		#
+		#禁用机器人扫描
+		#
+		#-----------------------------------------------------------------------------------------------------
+
+		#---------------------------------------------------------------------------------
+        location ~ \.(rar|zip|tar|gz|xz|7z|php|bz2|jar|z|txt|aps|aspx|sql)$ {
+		deny all;
+		}
+
+		# 禁用以上述后缀结尾的请求
+		#--------------------------------------------------------------------------------
+	    location / {
+	    	if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+		    	return 503;
+	    	}
+
+			proxy_pass http://ibdp2p-backend;
+		}
+		location ~ ^(.*)/.svn/{
+	      		deny all;
+	  	}
+		#jenkins
+        location /jenkins {
+        	proxy_pass http://127.0.0.1:8089/jenkins;
+        }
+        location ^~ /(images|js|css) {
+        	root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/;
+        }
+        location ^~ /share {
+        	root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/;
+    	}
+        location /mbm {
+	        if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+	        	return 503;
+		}
+        	proxy_pass http://127.0.0.1:8080/mbm;
+		}
+        location ^~ /mbm/api {
+	   	proxy_pass http://127.0.0.1:8080/mbm/api;
+        }
+
+        location ^~ /mbm/uc/api {
+        	proxy_pass http://127.0.0.1:8080/mbm/uc/api;
+        }
+
+		location  /attach/ {
+	     	root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/pms/;
+		}
+
+		location ^~ /mbm/mbmResource/creditcontract {
+		proxy_pass http://127.0.0.1:8080/mbm/mbmResource/creditcontract;
+        }
+
+        location /mobile {
+ 			if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                	return 503;
+            }
+        	proxy_pass http://ibdp2p-backend/mobile;
+		}
+        location ^~ /mobile/(images|wap|js|css) {
+            root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/mobile/;
+        }
+		location /pms {
+			if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+				return 503;
+			}
+         	proxy_pass http://ibdp2p-backend/pms;
+		}
+		location ^~ /pms/(images|js|css) {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/pms/;
+		}
+		location /Maintenance {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+		}
+
+		location /Gifts {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+		}
+		location /guarantee {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+		}
+		location /noStock {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+		}
+		location ^~ /manager {
+			deny all;
+		}
+		location @maintenance{
+			rewrite ^ http://sit.ibdp2p.com/Maintenance/index.html break;
+		}
+        error_page   503  @maintenance;
+}
+
+sit 端口443 配置文件 /usr/local/nginx/conf.d/sit_ssl.conf
+
+server {
+
+		listen	     443 ssl;
+        server_name  sit.ibdp2p.com;
+		ssl_certificate   /usr/local/nginx/sslkey/sit.ibdp2p.com.pem;
+        ssl_certificate_key  /usr/local/nginx/sslkey/sit.ibdp2p.com.key;
+        ssl_session_timeout 5m;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:HIGH:!aNULL:!MD5:!RC4:!DHE;
+        ssl_prefer_server_ciphers   on;
+		#-------------------------------------------------------------
+		#单独配置访问日志和错误日志
+		access_log logs/access_sit_ssl.log sit2;
+		error_log logs/error_sit_ssl.log debug;
+		#-------------------------------------------------------------
+        #include /opt/verynginx/verynginx/nginx_conf/in_server_block.conf;
+
+
+		if ($http_user_agent ~* python|googlebot|bingbot|yisouspider|semrushbot|mj12bot|ahrefsbot|slurp|^$) {
+        	return 403;
+        }
+        location ~ \.(rar|zip|tar|gz|xz|7z|php|bz2|jar|z|txt|aps|aspx|sql)$ {
+			deny all;
+		}
+        location / {
+        	if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+	        	return 503;
+        	}
+
+			proxy_pass https://10.45.181.104:8443;
+		}
+
+		location ~ ^(.*)/.svn/{
+       		deny all;
+   		}
+		location /portal/html/app/spiderPc.html {
+          deny all;
+       	}
+
+        location /appSvr {
+        if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+			return 503;
+        }
+          	proxy_pass https://ibdp2p-backend-ssl/appSvr;
+        }
+		#jenkins
+        location /jenkins {
+        	proxy_pass https://10.45.181.104:8453/jenkins;
+        }
+        location ^~ /(images|js|css) {
+        	root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/;
+        }
+        location ^~ /share {
+        	root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/;
+    	}
+        location /mbm {
+	        if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+	        	return 503;
+			}
+
+        	proxy_pass https://10.45.181.104:8443/mbm;
+		}
+        location ^~ /mbm/api {
+	   		proxy_pass https://10.45.181.104:8443/mbm/api;
+        }
+
+        location ^~ /mbm/uc/api {
+        	proxy_pass https://10.45.181.104:8443/mbm/uc/api;
+        }
+
+		location  /attach/ {
+	     	root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/pms/;
+		}
+
+		location ^~ /mbm/mbmResource/creditcontract {
+			proxy_pass https://10.45.181.104:8443/mbm/mbmResource/creditcontract;
+        }
+        location /mobile {
+ 			if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                	return 503;
+            }
+            proxy_pass https://ibdp2p-backend-ssl/mobile;
+		}
+        location ^~ /mobile/(images|wap|js|css) {
+            root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/mobile/;
+        }
+		location /pms {
+			if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+				return 503;
+			}
+         	proxy_pass https://ibdp2p-backend-ssl/pms;
+		}
+		location ^~ /pms/(images|js|css) {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/pms/;
+		}
+		location /Maintenance {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+		}
+
+		location /Gifts {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+		}
+		location /guarantee {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+		}
+		location /noStock {
+			root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+		}
+		location ^~ /manager {
+			deny all;
+		}
+		location @maintenance{
+			rewrite ^ https://sit.ibdp2p.com/Maintenance/index.html break;
+		}
+        error_page   503  @maintenance;
+}
+#server {
+#	listen       80;
+#	server_name  mobile.ibdp2p.com;
+#	rewrite ^ https://sit.ibdp2p.com/mobile$request_uri? permanent;
+#}
+#server {
+#	listen       80;
+#	server_name  pms.ibdp2p.com;
+#	rewrite ^ https://sit.ibdp2p.com/pms$request_uri permanent;
+#}
+
+sit1 虚拟主机配置文件 /usr/local/nginx/conf.d/sit1.conf
+server {
+        #listen       80 default;
+        listen       80;
+        server_name  sit1.ibdp2p.com;
+		#-------------------------------------------------------------
+		#单独配置访问日志和错误日志
+		access_log logs/access_sit1.log main;
+		error_log logs/error_sit1.log debug;
+		#-------------------------------------------------------------
+
+		#include /opt/verynginx/verynginx/nginx_conf/in_server_block.conf;
+
+        location / {
+		if (-f /home/ibd/tomcat-test1/maintenance.enable) {
+			return 503;
+		}
+			proxy_pass http://localhost:8081;
+ 		}
+
+        location ^~ /(images|js|css) {
+            root /home/ibd/tomcat-test1/webapps/portal/;
+        }
+
+		location /appSvr {
+        	if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                	return 503;
+            }			
+        	proxy_pass http://localhost:8081/appSvr;
+        }
+
+        location /mbm {
+			if (-f /home/ibd/tomcat-test1/maintenance.enable) {
+            	return 503;
+            }
+            	proxy_pass http://localhost:8081/mbm;
+		}
+
+        location ^~ /mbm/(images|js|css) {
+            	root /home/ibd/tomcat-test1/webapps/mbm/;
+        }
+
+        location ^~ /mbm/api {
+			proxy_pass http://localhost:8081/mbm/api;
+        }
+
+  		location  /attach/ {
+        	root /home/ibd/tomcat-test1/webapps/pms/;
+        }
+
+        location ^~ /mbm/uc/api {
+			proxy_pass http://localhost:8081/mbm/uc/api;
+        }
+
+
+        location ^~ /mobile/(images|wap|js|css) {
+        	root /home/ibd/tomcat-test1/webapps/mobile/;
+        }
+
+		location /pms {
+			if (-f /home/ibd/tomcat-test1/maintenance.enable) {
+				return 503;
+			}
+			proxy_pass http://localhost:8081/pms;
+		}
+
+		location ^~ /pms/(images|js|css) {
+			root /home/ibd/tomcat-test1/webapps/pms/;
+		}
+
+		location /Maintenance {
+			root /home/ibd/tomcat-test1/webapps/portal/html/;
+		}
+
+		location ^~ /manager {
+			deny all;
+		}
+
+		location @maintenance{
+			rewrite ^ http://sit1.ibdp2p.com/Maintenance/index.html break;
+		}
+
+        error_page   503  @maintenance;
+}

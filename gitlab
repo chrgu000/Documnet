@@ -1,0 +1,14 @@
+gitlab
+安装 yum -y install gitlab-ce-9.1.0-ce.0.el7.x86_64.rpm
+启动
+gitlab-ctl reconfigure
+
+管理员账号和密码
+root
+Ljb19860402
+
+tortoisegit 官方网站帮助手册
+https://tortoisegit.org/docs/tortoisegit/
+
+
+

@@ -1,0 +1,765 @@
+centos 7 docker
+
+关闭selinux
+
+yum -y install lxc libcgroup
+yum -y install docker
+启动
+systemctl start docker.service
+开机自启动
+systemctl enable docker
+
+安装docker 使用官方的yum源
+sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+wget https://download.docker.com/linux/centos/docker-ce.repo \
+yum-config-manager --enable docker-ce-edge \
+yum-config-manager --enable docker-ce-test \
+yum -y install docker-ce
+
+增加一个配置文件,此文件默认是不存在，需要手动创建。默认的存储设备是Storage Driver: overlay2，官方建议修改为devicemapper,
+并且设置direct-lvm模式。devicemapper 支持两种模式：loop-lvm(官方不建议在生产环境中使用，性能很差)，direct-lvm
+
+
+DeviceMapper自Linux 2.6被引入成为了Linux最重要的一个技术。它在内核中支持逻辑卷管理的通用设备映射机制，它为实现用于存储资源管理的块设备驱动提供了一个高度模块化的内核架构，它包含三个重要的对象概念，Mapped Device、Mapping Table、Target device。
+Mapped Device 是一个逻辑抽象，可以理解成为内核向外提供的逻辑设备，它通过Mapping Table描述的映射关系和 Target Device 建立映射。Target device 表示的是 Mapped Device 所映射的物理空间段，对 Mapped Device 所表示的逻辑设备来说，就是该逻辑设备映射到的一个物理设备。
+
+Mapping Table里有 Mapped Device 逻辑的起始地址、范围、和表示在 Target Device 所在物理设备的地址偏移量以及Target 类型等信息（注：这些地址和偏移量都是以磁盘的扇区为单位的，即 512 个字节大小，所以，当你看到128的时候，其实表示的是128*512=64K）。
+
+DeviceMapper 中的逻辑设备Mapped Device不但可以映射一个或多个物理设备Target Device，还可以映射另一个Mapped Device，于是，就是构成了一个迭代或递归的情况，就像文件系统中的目录里除了文件还可以有目录，理论上可以无限嵌套下去。
+[root@localhost lib]# cat /etc/docker/daemon.json 
+{
+  "storage-driver": "devicemapper",
+  "storage-opts": [
+    "dm.directlvm_device=/dev/sda3",
+    "dm.thinp_percent=95",
+    "dm.thinp_metapercent=1",
+    "dm.thinp_autoextend_threshold=80",
+    "dm.thinp_autoextend_percent=20",
+    "dm.directlvm_device_force=false"
+  ]
+}
+
+修改docker 默认的路径
+systemctl stop docker
+cd /var/lib/
+cp -r docker docker.bak
+mv docker /data
+systemctl restart docker 
+
+docker info  使用这个命令查看下docker的默认路径
+[root@localhost lib]# docker info
+Containers: 0
+ Running: 0
+ Paused: 0
+ Stopped: 0
+Images: 0
+Server Version: 17.12.0-ce-rc4
+Storage Driver: devicemapper
+ Pool Name: docker-thinpool
+ Pool Blocksize: 524.3kB
+ Base Device Size: 10.74GB
+ Backing Filesystem: xfs
+ Udev Sync Supported: true
+ Data Space Used: 20.45MB
+ Data Space Total: 85.04GB
+ Data Space Available: 85.02GB
+ Metadata Space Used: 131.1kB
+ Metadata Space Total: 893.4MB
+ Metadata Space Available: 893.3MB
+ Thin Pool Minimum Free Space: 8.504GB
+ Deferred Removal Enabled: true
+ Deferred Deletion Enabled: true
+ Deferred Deleted Device Count: 0
+ Library Version: 1.02.140-RHEL7 (2017-05-03)
+Logging Driver: json-file
+Cgroup Driver: cgroupfs
+Plugins:
+ Volume: local
+ Network: bridge host macvlan null overlay
+ Log: awslogs fluentd gcplogs gelf journald json-file logentries splunk syslog
+Swarm: inactive
+Runtimes: runc
+Default Runtime: runc
+Init Binary: docker-init
+containerd version: 89623f28b87a6004d4b785663257362d1658a729
+runc version: b2567b37d7b75eb4cf325b77297b140ea686ce8f
+init version: 949e6fa
+Security Options:
+ seccomp
+  Profile: default
+Kernel Version: 3.10.0-693.el7.x86_64
+Operating System: CentOS Linux 7 (Core)
+OSType: linux
+Architecture: x86_64
+CPUs: 4
+Total Memory: 15.57GiB
+Name: localhost.localdomain
+ID: NRDA:V2P3:XR37:NQBF:XZDP:AOFI:KOR4:5EBQ:II74:JWVF:7U6S:R2B7
+Docker Root Dir: /data/docker
+Debug Mode (client): false
+Debug Mode (server): false
+Registry: https://index.docker.io/v1/
+Labels:
+Experimental: false
+Insecure Registries:
+ 127.0.0.0/8
+Live Restore Enabled: false
+
+查看docker是否启动
+
+[root@VM_115_8_centos ~]# ps -ef | grep docker
+root      2263 26753  0 15:20 pts/1    00:00:00 grep --color=auto docker
+root     29804     1  0 14:10 ?        00:00:11 /usr/bin/dockerd-current --add-runtime docker-runc=/usr/libexec/docker/docker-runc-current --default-runtime=docker-runc --exec-opt native.cgroupdriver=systemd --userland-proxy-path=/usr/libexec/docker/docker-proxy-current --selinux-enabled --log-driver=journald --signature-verification=false
+root     29811 29804  0 14:10 ?        00:00:00 /usr/bin/docker-containerd-current -l unix:///var/run/docker/libcontainerd/docker-containerd.sock --shim docker-containerd-shim --metrics-interval=0 --start-timeout 2m --state-dir /var/run/docker/libcontainerd/containerd --runtime docker-runc --runtime-args --systemd-cgroup=true
+
+下载最新的centos docker 镜像
+docker pull centos
+
+查看当前物理机有哪些docker 镜像
+[root@VM_115_8_centos ~]# docker images
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+docker.io/centos    latest              a8493f5f50ff        11 hours ago        192.5 MB
+
+启动一个docker
+[root@VM_115_8_centos docker]# docker run docker.io/centos  启动一个短命的容器，当命令运行完后容器就会停止
+
+查看运行的docker
+[root@VM_115_8_centos docker]# docker ps -l  列出最顶端的容器相关信息
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                      PORTS    NAMES
+be0c8990fa70        docker.io/centos    "/bin/bash"         20 seconds ago      Exited (0) 18 seconds ago    pedantic_curie
+
+运行一个docker  输出“hello world” 
+[root@VM_115_8_centos docker]# docker run docker.io/centos echo "hello world"
+hello world
+
+在docker容器中安装软件
+docker run docker.io/centos  yum -y install net-tools
+
+查看docker容器的有哪些用户
+[root@VM_115_8_centos docker]# docker run docker.io/centos  cat /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+adm:x:3:4:adm:/var/adm:/sbin/nologin
+lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+sync:x:5:0:sync:/sbin:/bin/sync
+shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+halt:x:7:0:halt:/sbin:/sbin/halt
+mail:x:8:12:mail:/var/spool/mail:/sbin/nologin
+operator:x:11:0:operator:/root:/sbin/nologin
+games:x:12:100:games:/usr/games:/sbin/nologin
+ftp:x:14:50:FTP User:/var/ftp:/sbin/nologin
+nobody:x:99:99:Nobody:/:/sbin/nologin
+systemd-bus-proxy:x:999:998:systemd Bus Proxy:/:/sbin/nologin
+systemd-network:x:192:192:systemd Network Management:/:/sbin/nologin
+dbus:x:81:81:System message bus:/:/sbin/nologin
+
+	
+Dockerfile 在/data/ 目录下
+cd /data 
+docker build -t centos:base  -f ./Dockerfile .
+
+
+启动容器
+docker run -t -i centos(image名称) /bin/bash
+-t 启动一个TTY 终端
+-i 打开标准输出
+--privileged 以特权模式运行容器
+
+完全退出 exit 此容器将会关闭。
+另外一中是不完全退出，使用ctrl-p与ctrl-q 这样退出了，但容器状态还是存在。
+
+删除容器
+docker rm 664341f230bf 4d9741c2aab8 40ff1e8e87ed (容器id，只需要部分)
+
+docker rm sit2 (容器名字)
+
+
+docker 私有仓库搭建
+环境：centos 7.3
+yum -y install docker
+[root@www ~]# docker version
+Client:
+ Version:         1.12.6
+ API version:     1.24
+ Package version: docker-common-1.12.6-11.el7.centos.x86_64
+ Go version:      go1.7.4
+ Git commit:      96d83a5/1.12.6
+ Built:           Tue Mar  7 09:23:34 2017
+ OS/Arch:         linux/amd64
+
+Server:
+ Version:         1.12.6
+ API version:     1.24
+ Package version: docker-common-1.12.6-11.el7.centos.x86_64
+ Go version:      go1.7.4
+ Git commit:      96d83a5/1.12.6
+ Built:           Tue Mar  7 09:23:34 2017
+ OS/Arch:         linux/amd64
+
+注意docker-ce 17.* (基于docker 1.13构建的)系列搭建方法不一样
+
+systemctl start docker
+systemctl enable docker
+注意selinux 一定要关闭
+setenforce 0
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/g'
+注意一定要将防火墙开启，默认情况下防火墙是随机自启动的
+systemctl start firewalld
+systemctl enable firewalld
+配置防火墙开放端口80,443,5000
+firewall-cmd --zone=public --add-port=80/tcp --permanent
+firewall-cmd --zone=public --add-port=443/tcp --permanent
+firewall-cmd --zone=public --add-port=5000/tcp --permanent
+firewall-cmd --zone=public --add-port=3306/tcp --permanent
+firewall-cmd --reload
+查看配置情况
+[root@localhost ~]# firewall-cmd --info-zone=public
+public (active)
+  target: default
+  icmp-block-inversion: no
+  interfaces: enp1s0
+  sources:
+  services: dhcpv6-client ssh
+  ports: 443/tcp 80/tcp 5000/tcp 3306/tcp
+  protocols:
+  masquerade: no
+  forward-ports:
+  sourceports:
+  icmp-blocks:
+  rich rules:
+从docker.io 仓库下载registry 镜像。2.4.1 不是最新版本
+ 
+
+运行容器registry
+docker run -d -p 192.168.1.206:5000:5000 --restart=always -v /opt/registry:/var/lib/registry registry:2.4.1
+参数说明
+	run 运行容器
+	-d  表示在后台运行，运行成功后返回一个容器id
+	-p  将容器的端口映射至本机的端口 [hostname/ip]:<host_port>:<container_port>
+	--restart=always 当重启docker服务的时候，此容器自动启动
+	-v  实现将容器中的目录和本机的目录进行挂载 <host_path>:<container_path>
+	registry:2.4.1 表示image_name
+
+docker run --help 查看帮助信息
+
+[root@localhost ~]# docker run -d -p 192.168.1.206:5000:5000 --restart=always -v /opt/registry:/var/lib/registry registry:2.4.1
+WARNING: IPv4 forwarding is disabled. Networking will not work.
+3d85d50520def10f967b52c8f18e5e74339dd0a7f1d08c7c62c2d19b5cbb6c77
+
+如果发生这类的错误
+vim /usr/lib/sysctl.d/00-system.conf
+	.....
+	net.ipv4.ip_forward = 1
+[root@localhost ~]# systemctl restart network
+[root@localhost ~]# sysctl net.ipv4.ip_forward
+net.ipv4.ip_forward = 1  -- 有这个提示表示修改成功
+再次运行上面的命令就不会报错了。这个错误出现在临时修改ip地址造成的。
+
+修改/etc/sysconfig/docker。增加下面一行，在这个文件的末尾增加
+ADD_REGISTRY='--insecure-registry 192.168.1.206:5000'
+这行的意思是添加本地仓库
+重启docker服务
+systemctl restart docker
+
+测试本地仓库是否搭建成功
+1、先从docker.io 上随便下载一个镜像，然后转换tag
+docker pull docker
+docker tag centos 192.168.1.206:5000/centos
+2、上传转换tag后的镜像
+docker push 192.168.1.206:5000/centos
+	查看上传的镜像
+	curl -XGET http://192.168.1.206:5000/v2/_catalog
+	curl -XGET http://192.168.1.206:5000/v2/centos/tags/list
+仓库的镜像具体存在的位置
+[root@localhost ~]# ll /opt/registry/docker/registry/v2/repositories/
+total 0
+drwxr-xr-x 5 root root 55 May 17 15:24 centos7-ssh
+python脚本下载地址：https://github.com/burnettk/delete-docker-registry-image
+查看仓库中有哪些镜像
+[root@localhost delete-docker-registry-image-master]# curl -XGET http://192.168.1.206:5000/v2/_catalog
+{"repositories":["centos7-ssh","sit"]}
+删除sit这个镜像。删除镜像的时候需要小心，注意其他镜像不能是在此镜像基础上创建的
+[root@localhost delete-docker-registry-image-master]# ./delete_docker_registry_image.py -i sit
+ 删除仓库中的镜像，需要借助一个Python脚本
+3、删除下载的centos镜像和转换tag的镜像
+docker rmi 192.168.1.206:5000/centos
+docker rmi centos
+4、从仓库中下载上传的镜像
+docker pull 192.168.1.206:5000/centos
+docker images 查看下载的镜像
+
+
+创建基础镜像。使用官方的shell脚本，与当前宿主机的系统保持一致。脚本内容如下：
+wget https://raw.githubusercontent.com/docker/docker/master/contrib/mkimage-yum.sh
+chmod 744 mkimage-yum.sh
+./mkimage-yum.sh -y /etc/yum.conf centos7
+#!/usr/bin/env bash
+#
+# Create a base CentOS Docker image.
+#
+# This script is useful on systems with yum installed (e.g., building
+# a CentOS image on CentOS).  See contrib/mkimage-rinse.sh for a way
+# to build CentOS images on other systems.
+# set -e  非零值立即退出
+set -e
+
+usage() {
+    cat <<EOOPTS
+$(basename $0) [OPTIONS] <name>
+OPTIONS:
+  -p "<packages>"  The list of packages to install in the container.
+                   The default is blank.
+  -g "<groups>"    The groups of packages to install in the container.
+                   The default is "Core".
+  -y <yumconf>     The path to the yum config to install packages from. The
+                   default is /etc/yum.conf for Centos/RHEL and /etc/dnf/dnf.conf for Fedora
+EOOPTS
+    exit 1
+}
+
+# option defaults
+yum_config=/etc/yum.conf
+if [ -f /etc/dnf/dnf.conf ] && command -v dnf &> /dev/null; then
+	yum_config=/etc/dnf/dnf.conf
+	alias yum=dnf
+fi
+install_groups="Core"
+while getopts ":y:p:g:h" opt; do
+    case $opt in
+        y)
+            yum_config=$OPTARG
+            ;;
+        h)
+            usage
+            ;;
+        p)
+            install_packages="$OPTARG"
+            ;;
+        g)
+            install_groups="$OPTARG"
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG"
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND - 1))
+name=$1
+
+if [[ -z $name ]]; then
+    usage
+fi
+
+target=$(mktemp -d --tmpdir $(basename $0).XXXXXX)
+
+set -x
+
+mkdir -m 755 "$target"/dev
+mknod -m 600 "$target"/dev/console c 5 1
+mknod -m 600 "$target"/dev/initctl p
+mknod -m 666 "$target"/dev/full c 1 7
+mknod -m 666 "$target"/dev/null c 1 3
+mknod -m 666 "$target"/dev/ptmx c 5 2
+mknod -m 666 "$target"/dev/random c 1 8
+mknod -m 666 "$target"/dev/tty c 5 0
+mknod -m 666 "$target"/dev/tty0 c 4 0
+mknod -m 666 "$target"/dev/urandom c 1 9
+mknod -m 666 "$target"/dev/zero c 1 5
+
+# amazon linux yum will fail without vars set
+if [ -d /etc/yum/vars ]; then
+	mkdir -p -m 755 "$target"/etc/yum
+	cp -a /etc/yum/vars "$target"/etc/yum/
+fi
+
+if [[ -n "$install_groups" ]];
+then
+    yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+        --setopt=group_package_types=mandatory -y groupinstall $install_groups
+fi
+
+if [[ -n "$install_packages" ]];
+then
+    yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+        --setopt=group_package_types=mandatory -y install $install_packages
+fi
+
+yum -c "$yum_config" --installroot="$target" -y clean all
+
+cat > "$target"/etc/sysconfig/network <<EOF
+NETWORKING=yes
+HOSTNAME=localhost.localdomain
+EOF
+
+# effectively: febootstrap-minimize --keep-zoneinfo --keep-rpmdb --keep-services "$target".
+#  locales
+rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
+#  docs and man pages
+rm -rf "$target"/usr/share/{man,doc,info,gnome/help}
+#  cracklib
+rm -rf "$target"/usr/share/cracklib
+#  i18n
+rm -rf "$target"/usr/share/i18n
+#  yum cache
+rm -rf "$target"/var/cache/yum
+mkdir -p --mode=0755 "$target"/var/cache/yum
+#  sln
+rm -rf "$target"/sbin/sln
+#  ldconfig
+rm -rf "$target"/etc/ld.so.cache "$target"/var/cache/ldconfig
+mkdir -p --mode=0755 "$target"/var/cache/ldconfig
+
+version=
+for file in "$target"/etc/{redhat,system}-release
+do
+    if [ -r "$file" ]; then
+        version="$(sed 's/^[^0-9\]*\([0-9.]\+\).*$/\1/' "$file")"
+        break
+    fi
+done
+
+if [ -z "$version" ]; then
+    echo >&2 "warning: cannot autodetect OS version, using '$name' as tag"
+    version=$name
+fi
+
+tar --numeric-owner -c -C "$target" . | docker import - $name:$version
+
+docker run -i -t --rm $name:$version /bin/bash -c 'echo success'
+
+rm -rf "$target"
+
+chmod u+x docker.sh
+./docker.sh centos 
+运行上述命令，系统会创建centos的镜像。这个镜像很小
+[root@www ~]# docker images
+REPOSITORY                       TAG                 IMAGE ID            CREATED             SIZE
+centos7                          7.3.1611            628e25d4ec07        26 minutes ago      264.9 MB
+192.168.1.206:5000/centos        latest              a8493f5f50ff        13 days ago         192.5 MB
+
+运行容器
+docker run -it 628e25d4ec07 /bin/bash    # 注意自行创建的镜像最好用镜像ID，如果用镜像名，有可能不识别。
+查看ip地址。centos 7 默认是没有ifconfig命令，需要按照net-tools
+[root@b79d0175d5be /]# ip addr list
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+12: eth0@if13: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
+    link/ether 02:42:ac:11:00:03 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 172.17.0.3/16 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::42:acff:fe11:3/64 scope link
+       valid_lft forever preferred_lft forever
+
+安装ssh server 服务
+安装之前修改yum源，默认的yum源是使用centos 官方的，非常慢
+[root@b79d0175d5be ~]# cd /etc/yum.repos.d
+[root@b79d0175d5be ~]# mv * /tmp
+将宿主中的yum源复制到容器中。我宿主机配置是阿里云的yum源速度还可以。
+[root@www ~]# docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                    NAMES
+b79d0175d5be        628e25d4ec07        "/bin/bash"              46 seconds ago      Up 45 seconds
+
+宿主机和容器之间复制文件
+docker cp [OPTIONS] <SRC_PATH> <CONTAINER:DEST_PATH>
+容器和宿主机直接复制文件
+docker cp <CONTAINER:SRC_PATH> <DEST_PATH>
+
+OPTIONS 
+-L 允许SRC_PATH 是软连接
+--help 显示帮助信息
+
+[root@www ~]# docker cp /etc/yum.repos.d/CentOS-Base.repo b79d0175d5be:/etc/yum.repos.d/
+[root@www ~]# docker cp /etc/yum.repos.d/epel.repo b79d0175d5be:/etc/yum.repos.d/
+
+容器内运行
+[root@b79d0175d5be yum.repos.d]# yum clean all
+Loaded plugins: fastestmirror
+Cleaning repos: base epel extras updates
+Cleaning up everything
+[root@b79d0175d5be yum.repos.d]# yum makecache
+
+[root@b79d0175d5be ~]# yum install passwd openssl openssh-server vim -y
+
+启动ssh服务
+
+
+[root@b79d0175d5be ~]# ssh-keygen -q -t rsa -b 2048 -f /etc/ssh/ssh_host_rsa_key -N ''
+[root@b79d0175d5be ~]# ssh-keygen -q -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key -N ''
+[root@b79d0175d5be ~]# ssh-keygen -q -t dsa -f /etc/ssh/ssh_host_ed25519_key -N ''
+
+修改sshd服务的配置文件  /etc/ssh/sshd_config
+关闭PAM 认证
+UsePAM yes 改为 UsePAM no 
+UsePrivilegeSeparation sandbox 改为 UsePrivilegeSeparation no
+[root@b79d0175d5be ~]# sed -i "s/#UsePrivilegeSeparation.*/UsePrivilegeSeparation no/g" /etc/ssh/sshd_config
+[root@b79d0175d5be ~]# sed -i "s/UsePAM.*/UsePAM no/g" /etc/ssh/sshd_config
+启动sshd服务
+[root@b79d0175d5be ~]# /usr/sbin/sshd -D &
+[1] 79
+[root@b79d0175d5be ~]# WARNING: 'UsePAM no' is not supported in Red Hat Enterprise Linux and may cause several problems.
+这个警告忽略
+[root@b79d0175d5be ~]# ps -ef | grep sshd
+root         79      1  0 06:09 ?        00:00:00 /usr/sbin/sshd -D
+root         81      1  0 06:09 ?        00:00:00 grep --color=auto sshd
+sshd服务已经处于运行状态
+[root@b79d0175d5be ~]# passwd root   #更改root的密码。我这里改成123456
+
+将当前容器保存镜像，先退出这个容器
+[root@b79d0175d5be ~]# exit
+exit
+[root@www ~]#
+这样表示关闭了当前容器，也可以使用crtl + p  然后 crtl + q 这样也可以退出当前容器，但是当前容器没有关闭。可以使用
+docker attach container_id  可以进入容器tty终端
+
+将修改提交，变成images
+[root@www ~]# docker commit b79d0175d5be 192.168.1.206:5000/centos7-ssh
+sha256:9a4808bb90a4a12f79dbb8f97d9979706f7df9bf1f4ca893b7382fa024da09e2
+[root@www ~]# echo $?
+0
+查看images 生成了新的images 192.168.1.206:5000/centos7-ssh
+[root@www ~]# docker images
+REPOSITORY                       TAG                 IMAGE ID            CREATED              SIZE
+192.168.1.206:5000/centos7-ssh   latest              9a4808bb90a4        About a minute ago   1.103 GB
+
+查看刚才退出容器的id
+[root@www ~]# docker ps -l
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                     PORTS    NAMES
+b79d0175d5be        628e25d4ec07        "/bin/bash"         14 minutes ago      Exited (0) 2 minutes ago    goofy_yonath
+
+将此容器删除
+[root@www ~]# docker rm b79d0175d5be
+b79d0175d5be
+验证是否删除成功
+[root@www ~]# docker ps -l
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS             NAMES
+6115b0285301        registry:2.4.1      "/bin/registry serve "   3 hours ago         Up 2 hours          192.168.1.206:5000->5000/tcp   cocky_feynman
+[root@www ~]# docker ps -a
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS             NAMES
+6115b0285301        registry:2.4.1      "/bin/registry serve "   3 hours ago         Up 2 hours          192.168.1.206:5000->5000/tcp   cocky_feynman
+
+使用新的镜像创建新的容器
+[root@www ~]# docker run -d -p 1601:22 9a4808bb90a4 /usr/sbin/sshd -D
+6913282fe2261e7b9849574688df491892ea2da59544b7622a2d8d6252e33248
+[root@www ~]# echo $?
+0
+[root@www ~]# docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS             NAMES
+6913282fe226        9a4808bb90a4        "/usr/sbin/sshd -D"      13 seconds ago      Up 11 seconds       0.0.0.0:1601->22/tcp           furious_dubinsky
+6115b0285301        registry:2.4.1      "/bin/registry serve "   4 hours ago         Up 2 hours          192.168.1.206:5000->5000/tcp   cocky_feynman
+[root@www ~]# docker port 6913282fe226
+22/tcp -> 0.0.0.0:1601
+
+可以从宿主机或者其他Linux主机ssh连接至此容器
+测试
+[root@sit ~]# ssh -p 1601 root@192.168.1.206
+The authenticity of host '[192.168.1.206]:1601 ([192.168.1.206]:1601)' can't be established.
+RSA key fingerprint is d4:22:9b:5d:a7:57:44:da:28:f0:fd:e8:1a:ab:4b:bb.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added '[192.168.1.206]:1601' (RSA) to the list of known hosts.
+root@192.168.1.206's password:
+[root@6913282fe226 ~]# hostname
+6913282fe226
+[root@6913282fe226 ~]# ip addr list
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+14: eth0@if15: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
+    link/ether 02:42:ac:11:00:03 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 172.17.0.3/16 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::42:acff:fe11:3/64 scope link
+       valid_lft forever preferred_lft forever
+[root@6913282fe226 ~]# hostname
+6913282fe226
+
+
+
+
+
+解决docker容器中centos 7 系统不能使用systemmctl 启动应用程序的方法
+docker run --privileged  -ti -e "container=docker"  -v /sys/fs/cgroup:/sys/fs/cgroup  2774772b7d3b  /usr/sbin/init
+-e 设置环境变量 "container=docker" 这个变量最好加上，否则可能会出现莫名其妙的错误
+systemd 类型的脚本需要使用cgroup，将容器的目录 /sys/fs/cgroup 挂载至 宿主机的目录/sys/fs/cgroup
+/usr/sbin/init 启动init服务。docker会启动一个类似于操作系统启动的tty终端
+
+
+退出有两种退出，
+	第一种是docker容器完全退出即停止此docker容器，使用exit命令即可
+	第二种是退出tty终端，但是docker容器在后台运行使用 ctrl + p 组合键，然后 在使用 ctrl + q 组合键
+		如果想再次进入此容器的tty终端，使用docker attach comtainer_id
+
+
+
+
+docker run --privileged  -ti -e "container=docker"  -v /sys/fs/cgroup:/sys/fs/cgroup -p 1601:22 -p 80:80 0703fd77afe9 /usr/sbin/init
+
+	这种方式启动的容器，如果只是单纯的关闭了终端，而容器还在运行中，再次进入容器终端的方法
+	docker exec -ti container_id /bin/bash
+		这种方式进入的容器的tty终端，最好使用ctrl + p 和 ctrl + q 这两组合键退出容器的tty，但是容器还在正常运行。
+		exit 这种方式退出，容器会关闭。这种方式慎用。
+	当然可以使用ssh连接，但是有时候网络不通那就没有办法使用ssh连接上
+
+
+
+
+疑难问题：
+	1、桥接docker0，容器的网络不通，无法平通宿主机之外的IP地址，可能需要重启docker服务。(上周五运行正常的，下班之前，docker宿主机是虚拟机没有关闭而是挂载的，关闭了物理机器，最后造成网络不通，后来重启docker服务问题解决)
+	2、
+
+
+
+https://github.com/docker/compose/releases/download/1.12.0/docker-compose-Linux-x86_64
+
+
+vim Dockerfile
+#非注释的第一行是FROM，基于那个images生成新的镜像
+FROM 8390550373f9
+#作者，一般还会给邮件
+MAINTAINER lijb
+#RUN 运行基础命令
+RUN mkdir /srcpack
+#ADD <src> <dest> 其中src必须是Dockerfile文件同一个目录下的文件，dest是容器内的目录
+#ADD 源文件是压缩包，到容器内会解压缩
+ADD LuaJIT-2.0.4.tar.gz /srcpack
+ADD lua-nginx-module-0.10.7.tar.gz /srcpack
+ADD ngx_devel_kit-0.3.0.tar.gz /srcpack
+ADD nginx-1.10.2.tar.gz /srcpack
+RUN mkdir /usr/local/luajit
+#编译安装的时候指定工作目录需要使用WORKDIR 使用cd进入相关目录不起作用
+WORKDIR /srcpack/LuaJIT-2.0.4
+RUN make PREFIX=/usr/local/luajit
+RUN make install PREFIX=/usr/local/luajit
+#编译安装指定私有目录的时候，往往要设置环境变量，需要使用ENV，即使是手动配置环境变量也无法识别到
+#在Dockerfile中使用export 配置环境变量识别不到
+ENV LUAJIT_LIB=/usr/local/luajit/lib
+ENV LUAJIT_INC=/usr/local/luajit/include/luajit-2.0
+RUN groupadd -r -g 307 nginx
+RUN useradd -r -u 307 -g 307 -M -s /sbin/nologin nginx
+WORKDIR /srcpack/nginx-1.10.2
+RUN ./configure --prefix=/usr/local/nginx --user=nginx --group=nginx --with-http_ssl_module --with-http_realip_module \
+    --with-http_addition_module --with-http_sub_module --with-http_dav_module --with-http_gunzip_module \
+    --with-http_gzip_static_module --with-http_secure_link_module --with-http_stub_status_module --with-http_auth_request_module \
+    --with-file-aio --without-http_fastcgi_module --without-http_uwsgi_module --without-http_scgi_module \
+    --with-cc-opt='-O2 -g -pipe -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector \
+    --param=ssp-buffer-size=4 -m64 -mtune=generic' --with-ld-opt=-Wl,-rpath,/usr/local/luajit/lib \
+    --add-module=/srcpack/ngx_devel_kit-0.3.0 --add-module=/srcpack/lua-nginx-module-0.10.7
+RUN make -j 4 && make install
+RUN ln -sv /usr/local/nginx/sbin/nginx /usr/sbin/nginx
+RUN rm -f /usr/local/nginx/conf/nginx.conf
+ADD nginx.conf /usr/local/nginx/conf/
+RUN mkdir /usr/local/nginx/conf.d
+ADD sit.conf /usr/local/nginx/conf.d/
+
+
+
+docker sit --> Host
+	ssh 22 --> 1600
+	nginx  80 --> 81
+	tomcat 8080  --> 8180
+	jenkins 8090 --> 8190
+	mysql 3306 --> 3316
+docker sit1 --> Host
+	ssh 22 --> 1601
+	nginx 80  --> 82
+	tomcat 8081  --> 8181
+	jenkins 8090 --> 8191
+	mysql 3306 --> 3326
+docker sit2 --> Host
+	ssh 22 --> 1602
+	nginx 80  --> 83
+	tomcat 8082  --> 8182
+	jenkins 8090 --> 8192
+	mysql 3306 --> 3336
+
+
+sit container 
+docker run --privileged  -ti -e "container=docker" --name sit --hostname sit -p 1600:22 -p 81:80  -p 8180:8080 -p 8190:8090  -p 3316:3306 -v /sys/fs/cgroup:/sys/fs/cgroup  -v /home/data:/data 76a67be04fc8  /usr/sbin/init
+
+[root@sit data]# cd /tmp
+[root@sit tmp]# mkdir mysql
+[root@sit tmp]# chown -R mysql:mysql /tmp/mysql/
+
+
+
+sit1 container 
+docker run --privileged  -ti -e "container=docker" --name sit1 --hostname sit1 -p 1601:22 -p 82:80 -p 9002:9001 -p 8181:8081 -p 8191:8090  -p 3326:3306 -v /sys/fs/cgroup:/sys/fs/cgroup  -v /home/data:/data 76a67be04fc8  /usr/sbin/init
+
+sit2 container 
+docker run --privileged  -ti -e "container=docker" --name sit2 --hostname sit2 -p 1601:22 -p 83:80 -p 9003:9001 -p 8182:8082 -p 8192:8090  -p 3336:3306 -v /sys/fs/cgroup:/sys/fs/cgroup  -v /home/data:/data 76a67be04fc8  /usr/sbin/init
+
+
+docker  sit 
+mysql 
+database_name	ibd_docker_sit
+user 			root
+password	    ibdsit
+
+docker sit1
+
+mysql 
+database_name	ibd_docker_sit1
+user 			root
+password	    ibdsit
+
+docker sit2
+
+mysql 
+database_name	ibd_docker_sit2
+user 			root
+password	    ibdsit
+
+-- docker sit 数据库中需要修改的.nginx 监听的端口是81 tomcat 端口是8180 --> 8080
+
+UPDATE st_param SET PARAM_VALUE=REPLACE(PARAM_VALUE,'https://sit.ibdp2p.com','http://192.168.1.206:81');
+UPDATE st_param SET PARAM_VALUE=REPLACE(PARAM_VALUE,'http://10.46.120.2:8080','http://192.168.1.206:8180');
+update st_param set PARAM_VALUE = '81' where PKID = 'http_port';
+
+
+
+/* 还需要改portal的配置文件
+sed -i 's/http.port=80/http.port=81/' \
+/opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/WEB-INF/classes/system.properties
+*/
+-- docker sit1 数据库中需要修改的 nginx监听的端口是82 tomcat 端口 8181 --> 8081
+
+UPDATE st_param SET PARAM_VALUE=REPLACE(PARAM_VALUE,'https://sit.ibdp2p.com','http://192.168.1.206:82');
+UPDATE st_param SET PARAM_VALUE=REPLACE(PARAM_VALUE,'http://10.46.120.2:8080','http://192.168.1.206:8181');
+update st_param set PARAM_VALUE = '82' where PKID = 'http_port';
+
+/* 还需要改portal的配置文件
+sed -i 's/http.port=80/http.port=82/' \
+/opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/WEB-INF/classes/system.properties
+*/
+
+-- docker sit2 数据库中需要修改的 nginx监听的端口是83  tomcat 端口 8182 --> 8082
+
+UPDATE st_param SET PARAM_VALUE=REPLACE(PARAM_VALUE,'https://sit.ibdp2p.com','http://192.168.1.206:83');
+UPDATE st_param SET PARAM_VALUE=REPLACE(PARAM_VALUE,'http://10.46.120.2:8080','http://192.168.1.206:8182');
+update st_param set PARAM_VALUE = '83' where PKID = 'http_port';
+
+/* 还需要改portal的配置文件
+sed -i 's/http.port=80/http.port=83/' \
+/opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/WEB-INF/classes/system.properties
+
+
+
+docker 问题汇总
+	1、docker info报错：
+		WARN:docker bridge-nf-call-iptables is disabled，
+        WARN:docker bridge-nf-call-ip6tables is disabled
+		解决办法：
+			vim /etc/sysctl.conf
+				net.bridge.bridge-nf-call-ip6tables = 1
+				net.bridge.bridge-nf-call-iptables = 1
+				net.bridge.bridge-nf-call-arptables = 1
+			sysctl -p
+	

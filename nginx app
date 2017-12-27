@@ -1,0 +1,109 @@
+server {
+        listen       80;
+	    listen       443 ssl;
+        server_name  app.ibdp2p.com;
+
+	    ssl_certificate   /usr/local/nginx/sslkey/www.ibdp2p.com.pem;
+        ssl_certificate_key  /usr/local/nginx/sslkey/www.ibdp2p.com.key;
+        ssl_session_timeout 5m;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:HIGH:!aNULL:!MD5:!RC4:!DHE;
+        ssl_prefer_server_ciphers   on;
+
+        location /appSvr {
+	    proxy_pass http://app-frontend/appSvr;
+	}
+
+        location /mobile/html/app/productDesc.html {
+        	rewrite ^(.*)$ http://www.ibdp2p.com/$1 permanent;
+        }
+}
+
+server {
+        listen       80;
+        listen       443 ssl;
+        server_name  sit.ibdp2p.com;
+        ssl_certificate   /usr/local/nginx/sslkey/sit.ibdp2p.com.pem;
+        ssl_certificate_key  /usr/local/nginx/sslkey/sit.ibdp2p.com.key;
+        ssl_session_timeout 5m;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:HIGH:!aNULL:!MD5:!RC4:!DHE;
+        ssl_prefer_server_ciphers   on;
+
+       location /portal/html/app/spiderPc.html {
+          deny all;
+       }
+
+        location /appSvr {       
+          #proxy_pass https://ibdp2p-backend-ssl/appSvr;
+          proxy_pass http://ibdp2p-backend/appSvr;
+        }
+    
+        location ^~ /(images|js|css) {
+            root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/;
+        }
+        location ^~ /share {
+            root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/;
+        }
+        location /mbm {
+            if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                return 503;
+        }
+
+            proxy_pass https://10.45.181.104:8443/mbm;
+    }
+        location ^~ /mbm/api {
+        proxy_pass https://10.45.181.104:8443/mbm/api;
+        }
+
+        location ^~ /mbm/uc/api {
+                proxy_pass https://10.45.181.104:8443/mbm/uc/api;
+        }
+
+    location  /attach/ {
+            root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/pms/;
+    }
+
+    location ^~ /mbm/mbmResource/creditcontract {
+        proxy_pass https://10.45.181.104:8443/mbm/mbmResource/creditcontract;
+        }
+
+        location /mobile {
+        if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+                    return 503;
+                }
+                proxy_pass https://ibdp2p-backend-ssl/mobile;
+    }
+        location ^~ /mobile/(images|wap|js|css) {
+            root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/mobile/;
+        }
+    location /pms {
+        if (-f /opt/sdp/ibdp2p/maintenance.enable) {
+            return 503;
+        }
+            proxy_pass https://ibdp2p-backend-ssl/pms;
+    }
+    location ^~ /pms/(images|js|css) {
+        root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/pms/;
+    }
+    location /Maintenance {
+        root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+    }
+
+    location /Gifts {
+        root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+    }
+    location /guarantee {
+        root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+    }
+    location /noStock {
+        root /opt/sdp/ibdp2p/apache-tomcat-7.0.65/webapps/portal/html/;
+    }
+    location ^~ /manager {
+        deny all;
+    }
+    location @maintenance{
+        rewrite ^ https://sit.ibdp2p.com/Maintenance/index.html break;
+    }
+        error_page   503  @maintenance;
+}

@@ -1,0 +1,42 @@
+
+
+2016/12/12 09:23:40 [warn] 15467#0: *783075 a client request body is buffered to a temporary file /usr/local/nginx/client_body_temp/000
+0000041, client: 119.136.147.174, server: www.ibdp2p.com, request: "POST /pms/mbm/saveContractPic.action HTTP/1.1", host: "www.ibdp2p.c
+om", referrer: "http://www.ibdp2p.com/pms/mbm/auditCredit.action?pkid=527"
+
+
+
+pattern="%h %l %u %t &quot;%r&quot; %s %b" />
+
+
+    * %h 访问的用户IP地址
+    * %l 访问逻辑用户名，通常返回'-'
+    * %u 访问验证用户名，通常返回'-'
+    * %t 访问日时
+    * %r 访问的方式(post或者是get)，访问的资源和使用的http协议版本
+    * %s 访问返回的http状态
+    * %b 访问资源返回的流量
+    * %T 访问所使用的时间
+    
+
+
+Ijl1 yVVC sgaY imWg 6xv6lg
+anJh QSbe G7gQ eYDF
+cyUn 3Y1j 35H+ 8f6Z VsJa e6ac ayOB ji16
+
+openssl rand -base64 #n
+	将给定的每3位转换为4位
+生成8位随机数
+	openssl rand -base64 6
+	EGOtgpQY
+生成16为随机数
+	openssl rand -base64 12
+	OUP9fg0hcVCIov02
+生成32位随机数
+	openssl rand -base64 24
+	ACx32KOFvrXSfnp1zLhHEn6qa33HJl9v
+
+
+
+VeryNginx web-waf
+

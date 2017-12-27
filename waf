@@ -1,0 +1,238 @@
+
+先安装modsecurity
+yum install httpd-devel apr apr-util-devel apr-devel  pcre pcre-devel  libxml2 libxml2-devel
+cd ModSecurity-nginx_refactoring
+./autogen.sh
+./configure --enable-standalone-module --disable-mlogc
+make 
+
+
+
+./configure --prefix=/usr/local/nginx \
+--user=nginx \
+--group=nginx \
+--with-http_ssl_module \
+--with-http_realip_module \
+--with-http_addition_module \
+--with-http_sub_module \
+--with-http_dav_module \
+--with-http_gunzip_module \
+--with-http_gzip_static_module \
+--with-http_secure_link_module \
+--with-http_stub_status_module \
+--with-http_auth_request_module \
+--with-file-aio \
+--without-http_fastcgi_module \
+--without-http_uwsgi_module \
+--without-http_scgi_module \
+--add-module=/root/ModSecurity-nginx_refactoring/nginx/modsecurity \
+--with-cc-opt='-O2 -g -pipe -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m64 -mtune=generic'
+
+
+每个规则文件都应对某一类攻击的
+
+每个规则文件中可以包含0000-9999 个规则
+
+	例如在：REQUEST-910-IP-REPUTATION.conf  规则ID的范围：910 0000 -- 910 9999
+
+这两个规则文件暂时用不上，不用添加
+REQUEST-903.9002-WORDPRESS-EXCLUSION-RULES.conf  
+REQUEST-903.9001-DRUPAL-EXCLUSION-RULES.conf
+
+REQUEST-949-BLOCKING-EVALUATION.conf 
+	这个规则文件包含异常阈值检测相关的规则
+
+RESPONSE-980-CORRELATION.conf
+	防范sql 注入攻击
+
+SecRequestBodyLimit # 如果有上传需要将此值设置大些。默认设置为12.5M，
+
+
+SecAuditEngine On|Off|RelevantOnly
+
+配置审计日志引擎的开启与否，On-默认情况下记录所有事务的日志，Off-默认情况下不记录所有事务的日志，RelevantOnly-默认只记录事务中由warning或error触发的日志，或者记录一些特意考虑过的状态码
+
+
+
+
+Include /usr/local/nginx/conf/owasp/crs-setup.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-901-INITIALIZATION.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-905-COMMON-EXCEPTIONS.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-910-IP-REPUTATION.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-911-METHOD-ENFORCEMENT.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-912-DOS-PROTECTION.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-913-SCANNER-DETECTION.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-920-PROTOCOL-ENFORCEMENT.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-921-PROTOCOL-ATTACK.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-930-APPLICATION-ATTACK-LFI.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-931-APPLICATION-ATTACK-RFI.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-932-APPLICATION-ATTACK-RCE.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-941-APPLICATION-ATTACK-XSS.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-942-APPLICATION-ATTACK-SQLI.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION.conf
+Include /usr/local/nginx/conf/owasp/rules/REQUEST-949-BLOCKING-EVALUATION.conf
+Include /usr/local/nginx/conf/owasp/rules/RESPONSE-950-DATA-LEAKAGES.conf
+Include /usr/local/nginx/conf/owasp/rules/RESPONSE-951-DATA-LEAKAGES-SQL.conf
+Include /usr/local/nginx/conf/owasp/rules/RESPONSE-952-DATA-LEAKAGES-JAVA.conf
+Include /usr/local/nginx/conf/owasp/rules/RESPONSE-959-BLOCKING-EVALUATION.conf
+Include /usr/local/nginx/conf/owasp/rules/RESPONSE-980-CORRELATION.conf
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    server {
+        listen       80;
+        server_name  testwww.ibdp2p.com;
+        location / {
+			proxy_pass http://ibdp2p-backend;
+		}
+		location ~ ^(.*)/.svn/{
+        	deny all;
+   	 	}   
+        location ^~ /(images|js|css) {
+             root /opt/sdp/ibdp2p/apache-tomcat-6.0.43/webapps/portal/;
+        }
+        location ^~ /share {
+            root /opt/sdp/ibdp2p/apache-tomcat-6.0.43/webapps/portal/;
+    	}
+        location /mbm {
+            proxy_pass http://120.76.41.66:8080/mbm;
+		}
+        location ^~ /mbm/api {
+            #deny all;
+			proxy_pass http://120.76.41.66:8080/mbm/api;
+        }
+   
+        location ^~ /mbm/uc/api {
+            #deny all;
+			proxy_pass http://120.76.41.66:8080/mbm/uc/api;
+        }
+
+
+		location  /attach/ {
+     		root /opt/sdp/ibdp2p/apache-tomcat-6.0.43/webapps/pms/;
+		}
+		
+		location ^~ /mbm/mbmResource/creditcontract {
+			proxy_pass http://localhost:8080/mbm/mbmResource/creditcontract;
+        }
+		
+        location /mobile {
+            proxy_pass http://ibdp2p-backend/mobile;
+		}   
+        location ^~ /mobile/(images|wap|js|css) {
+             root /opt/sdp/ibdp2p/apache-tomcat-6.0.43/webapps/mobile/;
+        }       
+		location /pms {
+			proxy_pass http://ibdp2p-backend/pms;
+		}		
+		location ^~ /pms/(images|js|css) {
+			root /opt/sdp/ibdp2p/apache-tomcat-6.0.43/webapps/pms/;
+		}		
+		location /Maintenance {
+			root /opt/sdp/ibdp2p/apache-tomcat-6.0.43/webapps/portal/html/;
+		}   
+		
+		location /Gifts {
+			root /opt/sdp/ibdp2p/apache-tomcat-6.0.43/webapps/portal/html/;
+		}   
+		location /guarantee {
+				 root /opt/sdp/ibdp2p/apache-tomcat-6.0.43/webapps/portal/html/;
+			}   
+		location /noStock {
+			root /opt/sdp/ibdp2p/apache-tomcat-6.0.43/webapps/portal/html/;
+		}   		
+		location ^~ /manager {
+				 deny all;
+		}		
+		location @maintenance{
+			rewrite ^ http://www.ibdp2p.com/Maintenance/index.html break;
+		}
+        error_page   503  @maintenance;
+    }   
+   	server {
+        listen       80;
+        server_name  testmobile.ibdp2p.com;
+		rewrite ^ http://www.ibdp2p.com/mobile$request_uri? permanent;
+    }  
+    server {
+        listen       80;
+        server_name  testpms.ibdp2p.com;
+        rewrite ^ http://www.ibdp2p.com/pms$request_uri permanent;
+    }
+
+
+
+
+
+    nginx 安全配置
+    	一、禁止没有多余的请求方法。比如：只运行 GET,HEAD,POST 方法
+    	http的8种请求方法
+	    	1、OPTIONS
+			返回服务器针对特定资源所支持的HTTP请求方法，也可以利用向web服务器发送‘*’的请求来测试服务器的功能性
+			2、HEAD
+			向服务器索与GET请求相一致的响应，只不过响应体将不会被返回。这一方法可以再不必传输整个响应内容的情况下，就可以获取包含在响应小消息头中的元信息。
+			3、GET
+			向特定的资源发出请求。注意：GET方法不应当被用于产生“副作用”的操作中，例如在Web Application中，其中一个原因是GET可能会被网络蜘蛛等随意访问。Loadrunner中对应get请求函数：web_link和web_url
+			4、POST
+			向指定资源提交数据进行处理请求（例如提交表单或者上传文件）。数据被包含在请求体中。POST请求可能会导致新的资源的建立和/或已有资源的修改。 Loadrunner中对应POST请求函数：web_submit_data,web_submit_form
+			5、PUT
+			向指定资源位置上传其最新内容
+			6、DELETE
+			请求服务器删除Request-URL所标识的资源
+			7、TRACE
+			回显服务器收到的请求，主要用于测试或诊断
+			8、CONNECT
+			HTTP/1.1协议中预留给能够将连接改为管道方式的代理服务
+		二、过滤掉网络机器人客户端。非常规的客户端有很多，需要根据分析日志完善此列表
+			if ($http_user_agent ~* "java|python|perl|ruby|curl|bash|echo|uname|base64|decode|md5sum|select|concat|httprequest|httpclient|nmap|scan" ) {  
+				    return 403;  
+				}  
+				if ($http_user_agent ~* "" ) {  
+				    return 403;  
+				} 
+
+		三、封杀特定的url
+			location ~* \.(bak|save|sh|sql|mdb|svn|git|old|root|php|)$ {  
+			rewrite ^/(.*)$  $host  permanent;  
+			} 
+
+		四、防sql 注入攻击
+			 if ($request_uri ~* (.*)(insert|select|delete|update|count|*|%|master|truncate|declare|'|;|and|or|(|)|exec)(.*)$ ) { rewrite ^(.*) 11 redirect; }
+
+
+
+
+modsecurity owsap rule
+
+		REQUEST-901-INITIALIZATION.conf  初始化规则配置文件
+			SecComponentSignature "OWASP_CRS/3.0.0" 配置规则文件的版本
+
+
+		# 以rar,zip 等结尾的拒绝访问
+		SecRule REQUEST_URI ".*\.(rar|zip)$" "phase:1,log,deny,id:1" 
